@@ -898,6 +898,57 @@
   }
   .auth-message.error { color: var(--state-crisis); }
   .auth-message.success { color: var(--state-calm); }
+
+  .legal-consents {
+    margin: 16px 0 14px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--paper-card);
+  }
+  .legal-consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0 0 13px;
+    color: var(--ink-soft);
+    font-size: 12.5px;
+    line-height: 1.55;
+    cursor: pointer;
+  }
+  .legal-consent:last-of-type { margin-bottom: 0; }
+  .legal-consent input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 2px 0 0;
+    flex: 0 0 auto;
+    accent-color: var(--accent-deep);
+    cursor: pointer;
+  }
+  .legal-consent a,
+  .legal-note a {
+    color: var(--accent-deep);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .legal-consent a:hover,
+  .legal-note a:hover { color: var(--ink); }
+  .legal-consent a:focus-visible {
+    outline: 2px solid var(--accent-deep);
+    outline-offset: 2px;
+  }
+  .legal-note {
+    margin: 11px 0 0;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-faint);
+    line-height: 1.55;
+  }
+  .auth-submit:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
   .auth-fineprint {
     margin: 14px 0 0;
     font-family: var(--mono);
@@ -1156,10 +1207,37 @@
         <label class="field-label" for="authEmail">Seu email</label>
         <input id="authEmail" type="email" inputmode="email" autocomplete="email" placeholder="voce@email.com" required>
       </div>
-      <button class="btn auth-submit" id="authSubmitBtn" type="submit">Enviar link de acesso</button>
+
+      <div class="legal-consents" id="legalConsents">
+        <label class="legal-consent">
+          <input type="checkbox" id="termsConsent">
+          <span>
+            Li e concordo com os
+            <a href="termos.html" target="_blank" rel="noopener">Termos de Uso</a>
+            e declaro ter 18 anos ou mais.
+          </span>
+        </label>
+
+        <label class="legal-consent">
+          <input type="checkbox" id="sensitiveDataConsent">
+          <span>
+            Autorizo o tratamento e a sincronização dos dados que registro
+            sobre minha pele, sono, estresse, rotina e possíveis gatilhos
+            para manter meu histórico e gerar insights pessoais, conforme a
+            <a href="privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.
+          </span>
+        </label>
+
+        <p class="legal-note">
+          Se você não quiser sincronizar seus dados, pode continuar usando
+          o Diário somente neste dispositivo.
+        </p>
+      </div>
+
+      <button class="btn auth-submit" id="authSubmitBtn" type="submit" disabled>Enviar link de acesso</button>
       <p class="auth-message" id="authMessage" aria-live="polite"></p>
     </form>
-    <p class="auth-fineprint">Ao continuar, o Diário enviará um link de acesso para este email. Não usamos senha nesta versão. Nunca coloque uma chave <code>service_role</code> neste arquivo.</p>
+    <p class="auth-fineprint">O Diário enviará um link de acesso para este email. Não usamos senha nesta versão. O link serve apenas para autenticar sua conta; a sincronização dos registros depende das autorizações acima.</p>
   </div>
 </div>
 
@@ -1180,8 +1258,8 @@
   // ---------- Supabase: configure somente URL + chave pública ----------
   // A chave publishable/anon é apropriada para frontend quando RLS está corretamente habilitado.
   // NUNCA use service_role no navegador.
-  const SUPABASE_URL = 'https://zpmfzohglitzehnqmqvh.supabase.co';
-  const SUPABASE_PUBLISHABLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwbWZ6b2hnbGl0emVobnFtcXZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0ODIwNzAsImV4cCI6MjEwMjA1ODA3MH0.xJIHS4PPGDfkJzFXXbUeaCE9uah_fMBQyBIE2wjtcHs';
+  const SUPABASE_URL = 'COLE_SUA_SUPABASE_URL_AQUI';
+  const SUPABASE_PUBLISHABLE_KEY = 'COLE_SUA_CHAVE_PUBLICA_AQUI';
   const SUPABASE_TABLE = 'registros';
   const ENABLE_PRODUCT_EVENTS = false; // ative só depois de criar a tabela eventos_produto
 
@@ -1331,11 +1409,23 @@
     $('authMessage').textContent = '';
     $('authMessage').className = 'auth-message';
     $('authOverlay').classList.add('visible');
+    updateAuthSubmitState();
     setTimeout(() => $('authEmail').focus(), 50);
   }
 
   function closeAuthModal(){
     $('authOverlay').classList.remove('visible');
+  }
+
+  function updateAuthSubmitState(){
+    const emailInput = $('authEmail');
+    const terms = $('termsConsent');
+    const sensitive = $('sensitiveDataConsent');
+    const btn = $('authSubmitBtn');
+    if (!emailInput || !terms || !sensitive || !btn) return;
+
+    const emailReady = emailInput.value.trim() !== '' && emailInput.checkValidity();
+    btn.disabled = !(emailReady && terms.checked && sensitive.checked);
   }
 
   function getAuthRedirectUrl(){
@@ -2153,12 +2243,33 @@
   $('authOverlay').addEventListener('click', (e) => { if (e.target === $('authOverlay')) closeAuthModal(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAuthModal(); });
 
+  $('authEmail').addEventListener('input', updateAuthSubmitState);
+  $('termsConsent').addEventListener('change', updateAuthSubmitState);
+  $('sensitiveDataConsent').addEventListener('change', updateAuthSubmitState);
+  updateAuthSubmitState();
+
   $('authForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = $('authEmail').value.trim();
     const msg = $('authMessage');
     const btn = $('authSubmitBtn');
-    if (!email) return;
+    const termsAccepted = $('termsConsent').checked;
+    const sensitiveDataAccepted = $('sensitiveDataConsent').checked;
+
+    if (!email || !$('authEmail').checkValidity()) {
+      msg.className = 'auth-message error';
+      msg.textContent = 'Digite um email válido para continuar.';
+      updateAuthSubmitState();
+      return;
+    }
+
+    if (!termsAccepted || !sensitiveDataAccepted) {
+      msg.className = 'auth-message error';
+      msg.textContent = 'Para salvar o Diário na nuvem, concorde com os Termos e autorize a sincronização dos seus registros.';
+      updateAuthSubmitState();
+      return;
+    }
+
     btn.disabled = true;
     btn.textContent = 'Enviando…';
     msg.className = 'auth-message';
@@ -2173,8 +2284,8 @@
       msg.className = 'auth-message error';
       msg.textContent = err && err.message ? err.message : 'Não foi possível enviar o acesso agora.';
     } finally {
-      btn.disabled = false;
       btn.textContent = 'Enviar link de acesso';
+      updateAuthSubmitState();
     }
   });
 
