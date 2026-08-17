@@ -772,6 +772,146 @@
     .cal-day .daynum { display: none; }
     .sos-float-btn { bottom: 14px; right: 14px; padding: 10px 14px; font-size: 11.5px; }
   }
+
+
+  /* ---------- Conta / sincronização ---------- */
+  .account-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin: -10px 0 28px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: rgba(232,225,210,0.55);
+  }
+  .account-copy { min-width: 0; }
+  .account-status {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    line-height: 1.45;
+  }
+  .account-status strong { color: var(--ink); font-weight: 500; }
+  .account-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .account-email {
+    display: none;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+  .cloud-btn { padding: 9px 13px; font-size: 12.5px; }
+  .logout-btn {
+    display: none;
+    border: 0;
+    background: transparent;
+    padding: 7px 4px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  .logout-btn:hover { color: var(--ink); }
+
+  .journey-card {
+    display: none;
+    margin-top: 18px;
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent-deep);
+    background: var(--paper);
+    border-radius: var(--radius);
+  }
+  .journey-card.visible { display: block; }
+  .journey-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .journey-text { font-size: 13px; color: var(--ink-soft); line-height: 1.55; margin: 0; }
+  .journey-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+  /* ---------- Modal de autenticação ---------- */
+  .auth-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(36,41,31,0.55);
+  }
+  .auth-overlay.visible { display: flex; }
+  .auth-dialog {
+    width: min(460px, 100%);
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 26px;
+    box-shadow: 0 18px 60px rgba(0,0,0,0.22);
+  }
+  .auth-dialog-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .auth-title {
+    font-family: var(--serif);
+    font-size: 24px;
+    font-weight: 500;
+    margin: 0;
+  }
+  .auth-close {
+    border: 0;
+    background: transparent;
+    color: var(--ink-faint);
+    cursor: pointer;
+    font-size: 24px;
+    line-height: 1;
+    padding: 0;
+  }
+  .auth-copy { margin: 0 0 18px; color: var(--ink-soft); font-size: 14px; line-height: 1.6; }
+  .auth-field { margin-bottom: 12px; }
+  .auth-field input {
+    width: 100%;
+    padding: 12px 13px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--paper-card);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+  }
+  .auth-submit { width: 100%; }
+  .auth-message {
+    min-height: 20px;
+    margin: 12px 0 0;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+  .auth-message.error { color: var(--state-crisis); }
+  .auth-message.success { color: var(--state-calm); }
+  .auth-fineprint {
+    margin: 14px 0 0;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-faint);
+    line-height: 1.55;
+  }
+
+  @media (max-width: 560px) {
+    .account-bar { align-items: flex-start; flex-direction: column; }
+    .account-actions { width: 100%; justify-content: space-between; }
+    .account-email { max-width: 52vw; }
+  }
+
 </style>
 </head>
 <body>
@@ -783,11 +923,22 @@
     <span class="streak-text" id="streakText">0/7 dias para ver seus padrões</span>
   </div>
 
+  <div class="account-bar" id="accountBar">
+    <div class="account-copy">
+      <div class="account-status" id="accountStatus"><strong>Modo local</strong> · seus registros ficam neste dispositivo.</div>
+    </div>
+    <div class="account-actions">
+      <span class="account-email" id="accountEmail"></span>
+      <button type="button" class="btn secondary cloud-btn" id="accountBtn">Salvar meu Diário</button>
+      <button type="button" class="logout-btn" id="logoutBtn">sair</button>
+    </div>
+  </div>
+
   <div class="header-block">
     <div class="eyebrow">Diário de pele</div>
     <h1 class="title">Sua pele já está<br>tentando te dizer algo.</h1>
     <p class="lede">Não é sobre ter pele perfeita. É sobre parar de viver no escuro — registrando o dia a dia até o padrão ficar óbvio.</p>
-    <p class="privacy-note">Tudo o que você registra aqui fica só neste navegador — nada é enviado, nada é salvo em nuvem.</p>
+    <p class="privacy-note" id="privacyNote">Você pode começar sem conta. Seus registros ficam neste dispositivo; se quiser, salve o Diário para proteger o histórico e continuar de outros aparelhos.</p>
   </div>
 
   <!-- ===== AVISO DE HISTÓRICO ===== -->
@@ -875,6 +1026,12 @@
         <span class="save-confirm" id="saveConfirm">salvo ✓</span>
       </div>
 
+      <div class="journey-card" id="journeyCard" aria-live="polite">
+        <div class="journey-title" id="journeyTitle"></div>
+        <p class="journey-text" id="journeyText"></p>
+        <div class="journey-actions" id="journeyActions"></div>
+      </div>
+
       <div class="save-footer">
         <label class="toggle-wrap">
           <input type="checkbox" id="autoDownloadToggle">
@@ -913,7 +1070,7 @@
   <!-- ===== INSIGHTS ===== -->
   <section class="block" id="insightsSection">
     <div class="block-head">
-      <h2 class="block-title">O que os dados mostram</h2>
+      <h2 class="block-title" id="insightsTitle">O que seus dados vão mostrar</h2>
     </div>
     <div id="insightsWrap"></div>
   </section>
@@ -956,7 +1113,6 @@
         <li>O mapeamento do eixo Intestino-Pele e gatilhos hormonais</li>
         <li>Rotinas completas (com indicações de produtos) para cada tipo de pele</li>
       </ul>
-      <!-- SUBSTITUA "#" pelo link real de checkout do Kiwify antes de publicar -->
       <a class="btn sos-cta" href="https://pay.kiwify.com.br/Iy3veZN" target="_blank" rel="noopener">Quero descobrir a causa raiz (R$ 27)</a>
     </div>
   </section>
@@ -968,7 +1124,7 @@
     </div>
     <div class="card">
       <div class="storage-status" id="storageStatus"></div>
-      <p style="margin:0 0 16px; font-size:13.5px; color:var(--ink-soft);" id="exportIntro">Seus registros já ficam salvos automaticamente neste navegador — não precisa fazer nada. Use os botões abaixo para transferir seu histórico para outro aparelho ou navegador, ou para manter uma cópia de segurança extra.</p>
+      <p style="margin:0 0 16px; font-size:13.5px; color:var(--ink-soft);" id="exportIntro">Seus registros ficam salvos automaticamente neste navegador. Se você conectar sua conta, eles também podem ser sincronizados com a nuvem. O arquivo abaixo continua sendo uma cópia de segurança sob seu controle.</p>
       <div class="export-row">
         <button class="btn secondary" id="exportBtn">Baixar histórico (.json)</button>
         <button class="btn secondary" id="importBtn">Carregar arquivo (.json)</button>
@@ -985,6 +1141,30 @@
 <button type="button" class="sos-float-btn" id="sosFloatBtn">🆘 Kit SOS Pele</button>
 
 
+<div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+  <div class="auth-dialog">
+    <div class="auth-dialog-head">
+      <div>
+        <div class="eyebrow" style="margin-bottom:8px;">Conta gratuita</div>
+        <h2 class="auth-title" id="authTitle">Salve seu Diário</h2>
+      </div>
+      <button type="button" class="auth-close" id="authCloseBtn" aria-label="Fechar">×</button>
+    </div>
+    <p class="auth-copy">Use seu email para proteger o histórico e continuar de outro aparelho. Seus registros que já estão neste navegador serão preservados e sincronizados depois do acesso.</p>
+    <form id="authForm">
+      <div class="auth-field">
+        <label class="field-label" for="authEmail">Seu email</label>
+        <input id="authEmail" type="email" inputmode="email" autocomplete="email" placeholder="voce@email.com" required>
+      </div>
+      <button class="btn auth-submit" id="authSubmitBtn" type="submit">Enviar link de acesso</button>
+      <p class="auth-message" id="authMessage" aria-live="polite"></p>
+    </form>
+    <p class="auth-fineprint">Ao continuar, o Diário enviará um link de acesso para este email. Não usamos senha nesta versão. Nunca coloque uma chave <code>service_role</code> neste arquivo.</p>
+  </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
   const STATE_ORDER = ['calma','leve','reativa','crise'];
@@ -996,18 +1176,298 @@
   const MONTH_LABEL = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
   const WEEKDAY_LABEL = ['dom','seg','ter','qua','qui','sex','sáb'];
 
+
+  // ---------- Supabase: configure somente URL + chave pública ----------
+  // A chave publishable/anon é apropriada para frontend quando RLS está corretamente habilitado.
+  // NUNCA use service_role no navegador.
+  const SUPABASE_URL = 'https://zpmfzohglitzehnqmqvh.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwbWZ6b2hnbGl0emVobnFtcXZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0ODIwNzAsImV4cCI6MjEwMjA1ODA3MH0.xJIHS4PPGDfkJzFXXbUeaCE9uah_fMBQyBIE2wjtcHs
+';
+  const SUPABASE_TABLE = 'registros';
+  const ENABLE_PRODUCT_EVENTS = false; // ative só depois de criar a tabela eventos_produto
+
+  const cloudConfigured =
+    /^https:\/\//.test(SUPABASE_URL) &&
+    !SUPABASE_URL.includes('COLE_') &&
+    SUPABASE_PUBLISHABLE_KEY &&
+    !SUPABASE_PUBLISHABLE_KEY.includes('COLE_');
+
+  // O Diário precisa continuar funcionando localmente mesmo se o CDN do Supabase falhar.
+  const supabaseLibraryAvailable = !!(window.supabase && typeof window.supabase.createClient === 'function');
+  const supabaseClient = cloudConfigured && supabaseLibraryAvailable
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+      })
+    : null;
+
   let entries = {}; // keyed by YYYY-MM-DD
   let selectedState = null;
   let selectedStress = null;
   let selectedBasics = null; // true, false, ou null (não respondido)
   let viewYear = new Date().getFullYear();
   let viewMonth = new Date().getMonth(); // mês do calendário sendo exibido (0-11)
+  let currentUser = null;
+  let cloudSyncRunning = false;
+  let lastCloudError = null;
 
   const $ = (id) => document.getElementById(id);
 
   // ---------- Salvamento automático (localStorage) ----------
   const STORAGE_KEY = 'diario-de-pele:entries';
   const DISMISS_KEY = 'diario-de-pele:import-hint-dismissed';
+  const SESSION_KEY = 'diario-de-pele:anonymous-session-id';
+
+  function getAnonymousSessionId(){
+    if (!hasStorage) return 'session-' + Math.random().toString(36).slice(2);
+    try {
+      let id = window.localStorage.getItem(SESSION_KEY);
+      if (!id) {
+        id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : 'session-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+        window.localStorage.setItem(SESSION_KEY, id);
+      }
+      return id;
+    } catch (e) {
+      return 'session-' + Math.random().toString(36).slice(2);
+    }
+  }
+
+  function normalizeIsoTimestamp(value){
+    if (!value) return null;
+    const ms = Date.parse(value);
+    return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
+  }
+
+  function localEntryToRow(entry, userId){
+    return {
+      user_id: userId,
+      date: entry.date,
+      state: entry.state,
+      sleep: entry.sleep,
+      stress: entry.stress,
+      triggers: Array.isArray(entry.triggers) ? entry.triggers : [],
+      locations: Array.isArray(entry.locations) ? entry.locations : [],
+      basics: entry.basics,
+      note: entry.note || '',
+      updated_at: normalizeIsoTimestamp(entry.updatedAt) || new Date().toISOString()
+    };
+  }
+
+  function rowToLocalEntry(row){
+    return {
+      date: row.date,
+      state: row.state,
+      sleep: Number(row.sleep),
+      stress: row.stress == null ? null : Number(row.stress),
+      triggers: Array.isArray(row.triggers) ? row.triggers : [],
+      locations: Array.isArray(row.locations) ? row.locations : [],
+      basics: row.basics == null ? null : !!row.basics,
+      note: row.note || '',
+      updatedAt: normalizeIsoTimestamp(row.updated_at) || normalizeIsoTimestamp(row.created_at) || null
+    };
+  }
+
+  function setCloudStatus(message, mode='normal'){
+    const el = $('accountStatus');
+    if (!el) return;
+    el.textContent = message;
+    if (mode === 'error') el.style.color = 'var(--state-reactive)';
+    else if (mode === 'success') el.style.color = 'var(--state-calm)';
+    else el.style.color = '';
+  }
+
+  function renderAccountState(){
+    const accountBtn = $('accountBtn');
+    const logoutBtn = $('logoutBtn');
+    const email = $('accountEmail');
+    const privacy = $('privacyNote');
+    if (!accountBtn) return;
+
+    if (!cloudConfigured) {
+      accountBtn.textContent = 'Configurar nuvem';
+      logoutBtn.style.display = 'none';
+      email.style.display = 'none';
+      setCloudStatus('Modo local · Supabase ainda não configurado neste arquivo.');
+      if (privacy) privacy.textContent = 'Seus registros ficam neste dispositivo. A sincronização em nuvem será habilitada quando o Supabase for configurado.';
+      return;
+    }
+
+    if (!supabaseClient) {
+      accountBtn.textContent = 'Nuvem indisponível';
+      accountBtn.disabled = false;
+      logoutBtn.style.display = 'none';
+      email.style.display = 'none';
+      setCloudStatus('Modo local · a sincronização está temporariamente indisponível.', 'error');
+      if (privacy) privacy.textContent = 'Seus registros continuam funcionando neste dispositivo. A sincronização poderá ser retomada quando a conexão com o serviço voltar.';
+      return;
+    }
+
+    if (currentUser) {
+      accountBtn.textContent = cloudSyncRunning ? 'Sincronizando…' : 'Diário salvo ✓';
+      accountBtn.disabled = cloudSyncRunning;
+      logoutBtn.style.display = 'inline-block';
+      email.style.display = 'inline-block';
+      email.textContent = currentUser.email || 'conta conectada';
+      if (!cloudSyncRunning && !lastCloudError) setCloudStatus('Sincronização ativa · histórico protegido na sua conta.', 'success');
+      if (privacy) privacy.textContent = 'Seu histórico fica neste dispositivo e é sincronizado com sua conta. Você pode sair a qualquer momento sem apagar a cópia local.';
+    } else {
+      accountBtn.disabled = false;
+      accountBtn.textContent = 'Salvar meu Diário';
+      logoutBtn.style.display = 'none';
+      email.style.display = 'none';
+      setCloudStatus('Modo local · seus registros ficam neste dispositivo.');
+      if (privacy) privacy.textContent = 'Você pode começar sem conta. Seus registros ficam neste dispositivo; se quiser, salve o Diário para proteger o histórico e continuar de outros aparelhos.';
+    }
+  }
+
+  function openAuthModal(){
+    if (!cloudConfigured) {
+      alert('Antes de usar a conta, preencha SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY no arquivo.');
+      return;
+    }
+    if (!supabaseClient) {
+      alert('A sincronização em nuvem está indisponível agora. O Diário continua funcionando e salvando neste dispositivo.');
+      return;
+    }
+    if (currentUser) return;
+    $('authMessage').textContent = '';
+    $('authMessage').className = 'auth-message';
+    $('authOverlay').classList.add('visible');
+    setTimeout(() => $('authEmail').focus(), 50);
+  }
+
+  function closeAuthModal(){
+    $('authOverlay').classList.remove('visible');
+  }
+
+  function getAuthRedirectUrl(){
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.hash = '';
+    return url.href;
+  }
+
+  async function requestMagicLink(email){
+    const { error } = await supabaseClient.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: getAuthRedirectUrl(),
+        shouldCreateUser: true
+      }
+    });
+    if (error) throw error;
+  }
+
+  async function fetchCloudEntries(){
+    if (!supabaseClient || !currentUser) return [];
+    const { data, error } = await supabaseClient
+      .from(SUPABASE_TABLE)
+      .select('date,state,sleep,stress,triggers,locations,basics,note,created_at,updated_at')
+      .order('date', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  }
+
+  async function upsertRows(rows){
+    if (!rows.length || !supabaseClient || !currentUser) return;
+    const { error } = await supabaseClient
+      .from(SUPABASE_TABLE)
+      .upsert(rows, { onConflict: 'user_id,date', ignoreDuplicates: false });
+    if (error) throw error;
+  }
+
+  async function syncAllEntries(){
+    if (!supabaseClient || !currentUser || cloudSyncRunning) return;
+    cloudSyncRunning = true;
+    lastCloudError = null;
+    renderAccountState();
+    try {
+      const remoteRows = await fetchCloudEntries();
+      const remoteByDate = Object.fromEntries(remoteRows.map(row => [row.date, row]));
+      const merged = {};
+      const rowsToUpload = [];
+      const dates = new Set([...Object.keys(entries), ...Object.keys(remoteByDate)]);
+
+      dates.forEach(date => {
+        const local = entries[date] || null;
+        const remoteRow = remoteByDate[date] || null;
+        const remote = remoteRow ? rowToLocalEntry(remoteRow) : null;
+
+        if (local && !remote) {
+          const prepared = { ...local, updatedAt: normalizeIsoTimestamp(local.updatedAt) || new Date().toISOString() };
+          merged[date] = prepared;
+          rowsToUpload.push(localEntryToRow(prepared, currentUser.id));
+          return;
+        }
+        if (!local && remote) {
+          merged[date] = remote;
+          return;
+        }
+        if (!local && !remote) return;
+
+        const localMs = local.updatedAt ? Date.parse(local.updatedAt) : NaN;
+        const remoteMs = remote.updatedAt ? Date.parse(remote.updatedAt) : NaN;
+        if (Number.isFinite(localMs) && (!Number.isFinite(remoteMs) || localMs > remoteMs)) {
+          merged[date] = local;
+          rowsToUpload.push(localEntryToRow(local, currentUser.id));
+        } else {
+          // Registros legados sem updatedAt cedem para a nuvem se já existir uma cópia remota.
+          merged[date] = remote;
+        }
+      });
+
+      entries = merged;
+      persistEntries();
+      if (rowsToUpload.length) await upsertRows(rowsToUpload);
+      renderAllDataViews();
+      setCloudStatus('Salvo na nuvem ✓', 'success');
+    } catch (err) {
+      console.error('Falha ao sincronizar com Supabase:', err);
+      lastCloudError = err;
+      setCloudStatus('Sem sincronização agora · seus dados continuam salvos neste dispositivo.', 'error');
+    } finally {
+      cloudSyncRunning = false;
+      renderAccountState();
+    }
+  }
+
+  async function syncSingleEntry(key){
+    if (!supabaseClient || !currentUser || !entries[key]) return;
+    setCloudStatus('Sincronizando…');
+    try {
+      await upsertRows([localEntryToRow(entries[key], currentUser.id)]);
+      lastCloudError = null;
+      setCloudStatus('Salvo na nuvem ✓', 'success');
+    } catch (err) {
+      console.error('Falha ao sincronizar registro:', err);
+      lastCloudError = err;
+      setCloudStatus('Salvo neste dispositivo · sincronização pendente.', 'error');
+    }
+  }
+
+  async function trackEvent(eventName){
+    if (!ENABLE_PRODUCT_EVENTS || !supabaseClient || !cloudConfigured) return;
+    try {
+      await supabaseClient.from('eventos_produto').insert({
+        user_id: currentUser ? currentUser.id : null,
+        session_id: getAnonymousSessionId(),
+        event: eventName,
+        page: window.location.pathname
+      });
+    } catch (e) {
+      // Analytics jamais deve bloquear a experiência principal.
+      console.debug('Evento não enviado:', eventName);
+    }
+  }
+
+  function renderAllDataViews(){
+    renderCalendar();
+    renderInsights();
+    updateImportHint();
+    updateStorageStatus();
+    updateStreakBar();
+    const key = entryDate && entryDate.value ? entryDate.value : todayKey(0);
+    loadFormForDate(key);
+  }
 
   function storageAvailable(){
     try {
@@ -1066,9 +1526,11 @@
     if (!el) return;
     const count = Object.keys(entries).length;
     if (hasStorage) {
-      el.textContent = count > 0
-        ? `✓ ${count} registro${count === 1 ? '' : 's'} salvo${count === 1 ? '' : 's'} automaticamente neste navegador`
-        : '✓ salvamento automático ativo neste navegador';
+      el.textContent = currentUser
+        ? `✓ ${count} registro${count === 1 ? '' : 's'} disponível${count === 1 ? '' : 's'} neste dispositivo e com sincronização de conta`
+        : (count > 0
+          ? `✓ ${count} registro${count === 1 ? '' : 's'} salvo${count === 1 ? '' : 's'} automaticamente neste navegador`
+          : '✓ salvamento automático ativo neste navegador');
       el.classList.remove('warn');
     } else {
       el.textContent = '⚠ salvamento automático indisponível neste navegador (modo privado ou bloqueio) — exporte após cada registro';
@@ -1077,7 +1539,7 @@
   }
 
   // ---------- Sequência (streak) ----------
-  const STREAK_GOAL = 5;
+  const STREAK_GOAL = 7;
 
   function updateStreakBar(){
     const bar = $('streakBar');
@@ -1091,10 +1553,10 @@
 
     if (totalDays >= STREAK_GOAL) {
       bar.classList.add('complete');
-      text.textContent = `Primeiros ${STREAK_GOAL} dias completos — ${totalDays} dia${totalDays === 1 ? '' : 's'} registrado${totalDays === 1 ? '' : 's'} no total`;
+      text.textContent = `Primeiros ${STREAK_GOAL} registros completos — ${totalDays} registro${totalDays === 1 ? '' : 's'} no total`;
     } else {
       bar.classList.remove('complete');
-      text.textContent = `${totalDays}/${STREAK_GOAL} dias para ver seus padrões`;
+      text.textContent = `${totalDays}/${STREAK_GOAL} registros para seu primeiro retrato`;
     }
   }
 
@@ -1127,10 +1589,14 @@
     sosFloatBtn.addEventListener('click', () => scrollToSectionId('sosSection'));
   }
 
+  function dateToLocalKey(d){
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
   function todayKey(offsetDays){
     const d = new Date();
     if (offsetDays) d.setDate(d.getDate() + offsetDays);
-    return d.toISOString().slice(0,10);
+    return dateToLocalKey(d);
   }
 
   function formatDateLabel(key){
@@ -1272,7 +1738,7 @@
   });
 
   // ---------- Save ----------
-  $('saveBtn').addEventListener('click', () => {
+  $('saveBtn').addEventListener('click', async () => {
     if (!selectedState) {
       alert('Escolha como a pele estava antes de salvar.');
       return;
@@ -1292,7 +1758,8 @@
       triggers: triggers,
       locations: locations,
       basics: selectedBasics,
-      note: $('noteInput').value.trim()
+      note: $('noteInput').value.trim(),
+      updatedAt: new Date().toISOString()
     };
     persistEntries();
 
@@ -1318,7 +1785,53 @@
       : (isToday ? 'salvo ✓' : `salvo ✓ (${formatDateLabel(key)})`);
     confirm.classList.add('show');
     setTimeout(() => confirm.classList.remove('show'), 2600);
+
+    updateJourneyCard(true);
+    trackEvent(Object.keys(entries).length === 1 ? 'first_entry_saved' : (Object.keys(entries).length === STREAK_GOAL ? 'seventh_entry_saved' : 'entry_saved'));
+    if (currentUser) await syncSingleEntry(key);
   });
+
+  function updateJourneyCard(justSaved=false){
+    const card = $('journeyCard');
+    if (!card) return;
+    const count = Object.keys(entries).length;
+    const title = $('journeyTitle');
+    const text = $('journeyText');
+    const actions = $('journeyActions');
+    actions.innerHTML = '';
+
+    if (!count) {
+      card.classList.remove('visible');
+      return;
+    }
+
+    card.classList.add('visible');
+    if (count >= STREAK_GOAL) {
+      title.textContent = justSaved && count === STREAK_GOAL ? 'Seu primeiro retrato está pronto.' : 'Seu histórico está ficando mais útil.';
+      text.textContent = `${count} registros acumulados. Quanto mais histórico, mais contexto você terá para observar associações que se repetem.`;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-small';
+      btn.textContent = 'Ver meu primeiro retrato';
+      btn.addEventListener('click', () => { trackEvent('report_viewed'); scrollToSectionId('insightsSection'); });
+      actions.appendChild(btn);
+    } else {
+      const remaining = STREAK_GOAL - count;
+      title.textContent = count === 1 ? 'Seu Diário começou.' : `${count}/${STREAK_GOAL} registros concluídos.`;
+      text.textContent = count === 1
+        ? `Seu primeiro registro está salvo. Faltam ${remaining} registros para liberar seu primeiro retrato.`
+        : `Faltam ${remaining} registro${remaining === 1 ? '' : 's'} para liberar seu primeiro retrato. Não precisam ser dias consecutivos.`;
+    }
+
+    if (!currentUser && cloudConfigured) {
+      const cloud = document.createElement('button');
+      cloud.type = 'button';
+      cloud.className = 'btn secondary btn-small';
+      cloud.textContent = 'Salvar meu Diário';
+      cloud.addEventListener('click', () => { trackEvent('account_cta_clicked'); openAuthModal(); });
+      actions.appendChild(cloud);
+    }
+  }
 
   // ---------- Calendar ----------
   function pad2(n){ return String(n).padStart(2, '0'); }
@@ -1453,6 +1966,7 @@
   function renderInsights(){
     const wrap = $('insightsWrap');
     const sortedKeys = Object.keys(entries).sort();
+    if ($('insightsTitle')) $('insightsTitle').textContent = sortedKeys.length >= STREAK_GOAL ? 'Seu primeiro retrato' : 'O que seus dados vão mostrar';
 
     if (sortedKeys.length < STREAK_GOAL) {
       const remaining = STREAK_GOAL - sortedKeys.length;
@@ -1460,7 +1974,7 @@
         <div class="locked-grid">
           ${LOCKED_PREVIEWS.map(p => `<div class="locked-card"><span class="locked-icon">🔒</span><span>${p}</span></div>`).join('')}
         </div>
-        <div class="locked-progress">Faltam <strong>${remaining} dia${remaining === 1 ? '' : 's'}</strong> de registro pra essas respostas aparecerem — quanto mais completo, mais precisas ficam.</div>
+        <div class="locked-progress">Faltam <strong>${remaining} registro${remaining === 1 ? '' : 's'}</strong> para liberar seu primeiro retrato — eles não precisam ser consecutivos.</div>
         <div class="locked-sos-hint">Pele em crise agora? <a class="locked-sos-link" id="insightsSosLink">Confira o Kit SOS</a> enquanto isso.</div>
       `;
       const sosLink = $('insightsSosLink');
@@ -1576,9 +2090,9 @@
   function avg(arr){ return arr.reduce((a,b) => a+b, 0) / arr.length; }
 
   function todayKeyFrom(key, offsetDays){
-    const d = new Date(key + 'T00:00:00');
+    const d = new Date(key + 'T12:00:00');
     d.setDate(d.getDate() + offsetDays);
-    return d.toISOString().slice(0,10);
+    return dateToLocalKey(d);
   }
 
   // ---------- Export / Import ----------
@@ -1611,13 +2125,17 @@
     reader.onload = (evt) => {
       try {
         const parsed = JSON.parse(evt.target.result);
-        entries = Object.assign({}, entries, parsed);
+        const importedAt = new Date().toISOString();
+        const normalized = {};
+        Object.entries(parsed).forEach(([date, item]) => {
+          if (!item || typeof item !== 'object') return;
+          normalized[date] = { ...item, date: item.date || date, updatedAt: item.updatedAt || importedAt };
+        });
+        entries = Object.assign({}, entries, normalized);
         persistEntries();
-        renderCalendar();
-        renderInsights();
-        updateImportHint();
-        updateStorageStatus();
-        updateStreakBar();
+        renderAllDataViews();
+        updateJourneyCard(false);
+        if (currentUser) syncAllEntries();
         alert(hasStorage ? 'Histórico carregado e salvo automaticamente neste navegador.' : 'Histórico carregado nesta sessão.');
       } catch (err) {
         alert('Não foi possível ler esse arquivo. Verifique se é um export válido do Diário de Pele.');
@@ -1625,6 +2143,82 @@
     };
     reader.readAsText(file);
     e.target.value = '';
+  });
+
+  // ---------- Conta / Auth ----------
+  $('accountBtn').addEventListener('click', () => {
+    if (currentUser) return;
+    openAuthModal();
+  });
+  $('authCloseBtn').addEventListener('click', closeAuthModal);
+  $('authOverlay').addEventListener('click', (e) => { if (e.target === $('authOverlay')) closeAuthModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAuthModal(); });
+
+  $('authForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = $('authEmail').value.trim();
+    const msg = $('authMessage');
+    const btn = $('authSubmitBtn');
+    if (!email) return;
+    btn.disabled = true;
+    btn.textContent = 'Enviando…';
+    msg.className = 'auth-message';
+    msg.textContent = '';
+    try {
+      await requestMagicLink(email);
+      msg.className = 'auth-message success';
+      msg.textContent = 'Link enviado. Abra seu email e use o link para voltar ao Diário.';
+      trackEvent('auth_link_requested');
+    } catch (err) {
+      console.error(err);
+      msg.className = 'auth-message error';
+      msg.textContent = err && err.message ? err.message : 'Não foi possível enviar o acesso agora.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Enviar link de acesso';
+    }
+  });
+
+  $('logoutBtn').addEventListener('click', async () => {
+    if (!supabaseClient) return;
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) {
+      alert('Não foi possível sair agora. Tente novamente.');
+      return;
+    }
+    currentUser = null;
+    lastCloudError = null;
+    renderAccountState();
+    updateStorageStatus();
+    updateJourneyCard(false);
+  });
+
+  async function initCloudSession(){
+    renderAccountState();
+    if (!supabaseClient) return;
+
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (!error && data && data.session) currentUser = data.session.user;
+    renderAccountState();
+
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      currentUser = session ? session.user : null;
+      lastCloudError = null;
+      renderAccountState();
+      updateStorageStatus();
+      updateJourneyCard(false);
+      if (event === 'SIGNED_IN' && currentUser) {
+        closeAuthModal();
+        setTimeout(() => syncAllEntries(), 0);
+        trackEvent('auth_completed');
+      }
+    });
+
+    if (currentUser) await syncAllEntries();
+  }
+
+  window.addEventListener('online', () => {
+    if (currentUser) syncAllEntries();
   });
 
   // ---------- Init ----------
@@ -1636,7 +2230,7 @@
   if (!hasStorage) {
     $('autoDownloadToggle').checked = true;
     $('saveHint').textContent = 'Este navegador não permite salvar automaticamente (modo privado ou bloqueio de armazenamento). Baixe o histórico após cada registro para não perder o progresso.';
-    $('exportIntro').textContent = 'Seus registros ficam apenas nesta sessão do navegador. Exporte o arquivo para não perder o progresso — e importe de volta sempre que reabrir o diário.';
+    $('exportIntro').textContent = 'Seus registros ficam apenas nesta sessão do navegador. Exporte o arquivo para não perder o progresso.';
   }
 
   entryDate.max = todayKey(0);
@@ -1648,6 +2242,9 @@
   updateImportHint();
   updateStorageStatus();
   updateStreakBar();
+  updateJourneyCard(false);
+  trackEvent('diary_opened');
+  initCloudSession();
 })();
 </script>
 
