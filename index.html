@@ -1151,14 +1151,41 @@
       <button type="button" class="auth-close" id="authCloseBtn" aria-label="Fechar">×</button>
     </div>
     <p class="auth-copy">Use seu email para proteger o histórico e continuar de outro aparelho. Seus registros que já estão neste navegador serão preservados e sincronizados depois do acesso.</p>
-    <form id="authForm">
-      <div class="auth-field">
-        <label class="field-label" for="authEmail">Seu email</label>
-        <input id="authEmail" type="email" inputmode="email" autocomplete="email" placeholder="voce@email.com" required>
-      </div>
-      <button class="btn auth-submit" id="authSubmitBtn" type="submit">Enviar link de acesso</button>
-      <p class="auth-message" id="authMessage" aria-live="polite"></p>
-    </form>
+   <form id="authForm">
+  <div class="auth-field">
+    <label class="field-label" for="authEmail">Seu email</label>
+    <input id="authEmail" type="email" inputmode="email" autocomplete="email" placeholder="voce@email.com" required>
+  </div>
+
+  <label class="legal-consent">
+    <input type="checkbox" id="termsConsent">
+    <span>
+      Li e concordo com os
+      <a href="termos.html" target="_blank">Termos de Uso</a>
+      e declaro ter 18 anos ou mais.
+    </span>
+  </label>
+
+  <label class="legal-consent">
+    <input type="checkbox" id="sensitiveDataConsent">
+    <span>
+      Autorizo o tratamento e a sincronização dos dados que registro
+      sobre minha pele, sono, estresse, rotina e possíveis gatilhos
+      para manter meu histórico e gerar insights pessoais,
+      conforme a
+      <a href="privacidade.html" target="_blank">Política de Privacidade</a>.
+    </span>
+  </label>
+
+  <p class="legal-note">
+    Se você não quiser sincronizar seus dados, pode continuar usando
+    o Diário somente neste dispositivo.
+  </p>
+
+  <button class="btn auth-submit" id="authSubmitBtn" type="submit">Enviar link de acesso</button>
+
+  <p class="auth-message" id="authMessage" aria-live="polite"></p>
+</form>
     <p class="auth-fineprint">Ao continuar, o Diário enviará um link de acesso para este email. Não usamos senha nesta versão. Nunca coloque uma chave <code>service_role</code> neste arquivo.</p>
   </div>
 </div>
