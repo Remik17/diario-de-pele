@@ -1197,18 +1197,18 @@
     <div class="auth-dialog-head">
       <div>
         <div class="eyebrow" style="margin-bottom:8px;">Conta gratuita</div>
-        <h2 class="auth-title" id="authTitle">Salve seu Diário</h2>
+        <h2 class="auth-title" id="authTitle">Acessar meu Diário</h2>
       </div>
       <button type="button" class="auth-close" id="authCloseBtn" aria-label="Fechar">×</button>
     </div>
-    <p class="auth-copy">Use seu email para proteger o histórico e continuar de outro aparelho. Seus registros que já estão neste navegador serão preservados e sincronizados depois do acesso.</p>
+    <p class="auth-copy" id="authCopy">Use seu email para acessar sua conta neste aparelho. Se sua conta já tiver autorização válida, o histórico será sincronizado automaticamente após o acesso.</p>
     <form id="authForm">
-      <div class="auth-field">
+      <div class="auth-field" id="authEmailSection">
         <label class="field-label" for="authEmail">Seu email</label>
         <input id="authEmail" type="email" inputmode="email" autocomplete="email" placeholder="voce@email.com" required>
       </div>
 
-      <div class="legal-consents" id="legalConsents">
+      <div class="legal-consents" id="legalConsents" style="display:none;">
         <label class="legal-consent">
           <input type="checkbox" id="termsConsent">
           <span>
@@ -1237,7 +1237,7 @@
       <button class="btn auth-submit" id="authSubmitBtn" type="submit" disabled>Enviar link de acesso</button>
       <p class="auth-message" id="authMessage" aria-live="polite"></p>
     </form>
-    <p class="auth-fineprint">O Diário enviará um link de acesso para este email. Não usamos senha nesta versão. O link serve apenas para autenticar sua conta; a sincronização dos registros depende das autorizações acima.</p>
+    <p class="auth-fineprint" id="authFineprint">O Diário enviará um link de acesso para este email. Não usamos senha nesta versão.</p>
   </div>
 </div>
 
@@ -1357,34 +1357,10 @@
     else el.style.color = '';
   }
 
-  function savePendingConsent(){
-    const payload = {
-      termsVersion: TERMS_VERSION,
-      privacyVersion: PRIVACY_VERSION,
-      termsAcceptedAt: new Date().toISOString(),
-      sensitiveDataConsentAt: new Date().toISOString()
-    };
-    try {
-      window.localStorage.setItem(PENDING_CONSENT_KEY, JSON.stringify(payload));
-    } catch (e) {
-      console.warn('Não foi possível guardar o consentimento pendente localmente:', e);
-    }
-    return payload;
-  }
-
-  function loadPendingConsent(){
-    try {
-      const raw = window.localStorage.getItem(PENDING_CONSENT_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (!parsed || parsed.termsVersion !== TERMS_VERSION || parsed.privacyVersion !== PRIVACY_VERSION) return null;
-      return parsed;
-    } catch (e) {
-      return null;
-    }
-  }
-
   function clearPendingConsent(){
+    // Compatibilidade com a versão anterior: remove eventual consentimento
+    // pendente salvo no navegador. A partir desta versão, o consentimento
+    // só é coletado depois que a identidade do usuário é conhecida.
     try {
       window.localStorage.removeItem(PENDING_CONSENT_KEY);
     } catch (e) {}
@@ -1449,13 +1425,10 @@
         return true;
       }
 
-      const pending = loadPendingConsent();
-      if (pending) {
-        await persistConsentForCurrentUser(pending);
-        return true;
-      }
-
+      // Não existe consentimento atual para esta conta.
+      // Nenhum dado do Diário é lido ou enviado até o usuário autorizar.
       cloudConsentGranted = false;
+      clearPendingConsent();
       return false;
     } catch (err) {
       console.error('Falha ao verificar consentimento:', err);
@@ -1528,22 +1501,45 @@
     }
     if (currentUser && cloudConsentGranted) return;
 
+    const title = $('authTitle');
+    const copy = $('authCopy');
+    const emailSection = $('authEmailSection');
+    const emailInput = $('authEmail');
+    const legal = $('legalConsents');
+    const fineprint = $('authFineprint');
+    const btn = $('authSubmitBtn');
+
     $('authMessage').textContent = '';
     $('authMessage').className = 'auth-message';
 
     if (currentUser) {
-      $('authEmail').value = currentUser.email || '';
-      $('authEmail').disabled = true;
-      $('authSubmitBtn').textContent = 'Autorizar e sincronizar';
+      // A identidade já é conhecida. Só agora pedimos o consentimento,
+      // e apenas se não houver uma versão atual registrada no Supabase.
+      title.textContent = 'Autorize a sincronização';
+      copy.textContent = 'Sua conta já está conectada. Para enviar seus registros deste dispositivo para a nuvem e recuperar seu histórico, confirme as autorizações abaixo.';
+      emailSection.style.display = 'none';
+      emailInput.disabled = true;
+      legal.style.display = 'block';
+      $('termsConsent').checked = false;
+      $('sensitiveDataConsent').checked = false;
+      btn.textContent = 'Autorizar e sincronizar';
+      fineprint.textContent = 'Sem essa autorização, o Diário continua funcionando somente neste dispositivo e nenhum registro pessoal é sincronizado com a nuvem.';
     } else {
-      $('authEmail').disabled = false;
-      $('authSubmitBtn').textContent = 'Enviar link de acesso';
+      // Em um aparelho novo, primeiro identificamos a conta. Não repetimos
+      // os checkboxes antes de saber se o usuário já consentiu anteriormente.
+      title.textContent = 'Acessar meu Diário';
+      copy.textContent = 'Use seu email para acessar sua conta neste aparelho. Depois do acesso, verificaremos automaticamente se sua autorização atual já está registrada.';
+      emailSection.style.display = 'block';
+      emailInput.disabled = false;
+      legal.style.display = 'none';
+      btn.textContent = 'Enviar link de acesso';
+      fineprint.textContent = 'O Diário enviará um link de acesso para este email. Não usamos senha nesta versão.';
     }
 
     $('authOverlay').classList.add('visible');
     updateAuthSubmitState();
     setTimeout(() => {
-      if (!currentUser) $('authEmail').focus();
+      if (!currentUser) emailInput.focus();
     }, 50);
   }
 
@@ -1558,10 +1554,13 @@
     const btn = $('authSubmitBtn');
     if (!emailInput || !terms || !sensitive || !btn) return;
 
-    const emailReady = currentUser
-      ? true
-      : (emailInput.value.trim() !== '' && emailInput.checkValidity());
-    btn.disabled = !(emailReady && terms.checked && sensitive.checked);
+    if (currentUser) {
+      // Usuário autenticado sem consentimento atual: exige as duas caixas.
+      btn.disabled = !(terms.checked && sensitive.checked);
+    } else {
+      // Usuário ainda não autenticado: pede apenas um email válido.
+      btn.disabled = !(emailInput.value.trim() !== '' && emailInput.checkValidity());
+    }
   }
 
   function getAuthRedirectUrl(){
@@ -2389,60 +2388,71 @@
     const email = $('authEmail').value.trim();
     const msg = $('authMessage');
     const btn = $('authSubmitBtn');
-    const termsAccepted = $('termsConsent').checked;
-    const sensitiveDataAccepted = $('sensitiveDataConsent').checked;
 
-    if (!currentUser && (!email || !$('authEmail').checkValidity())) {
-      msg.className = 'auth-message error';
-      msg.textContent = 'Digite um email válido para continuar.';
-      updateAuthSubmitState();
+    // Etapa 1: usuário ainda não autenticado. Somente enviamos o Magic Link.
+    // Não pedimos novamente consentimentos que podem já existir na conta.
+    if (!currentUser) {
+      if (!email || !$('authEmail').checkValidity()) {
+        msg.className = 'auth-message error';
+        msg.textContent = 'Digite um email válido para continuar.';
+        updateAuthSubmitState();
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Enviando…';
+      msg.className = 'auth-message';
+      msg.textContent = '';
+
+      try {
+        await requestMagicLink(email);
+        msg.className = 'auth-message success';
+        msg.textContent = 'Link enviado. Abra seu email e use o link para voltar ao Diário.';
+        trackEvent('auth_link_requested');
+      } catch (err) {
+        console.error(err);
+        msg.className = 'auth-message error';
+        msg.textContent = err && err.message ? err.message : 'Não foi possível enviar o link agora.';
+      } finally {
+        btn.textContent = 'Enviar link de acesso';
+        updateAuthSubmitState();
+      }
       return;
     }
 
+    // Etapa 2: usuário autenticado e sem consentimento atual.
+    const termsAccepted = $('termsConsent').checked;
+    const sensitiveDataAccepted = $('sensitiveDataConsent').checked;
+
     if (!termsAccepted || !sensitiveDataAccepted) {
       msg.className = 'auth-message error';
-      msg.textContent = 'Para salvar o Diário na nuvem, concorde com os Termos e autorize a sincronização dos seus registros.';
+      msg.textContent = 'Para sincronizar o Diário, concorde com os Termos e autorize o tratamento dos registros informados.';
       updateAuthSubmitState();
       return;
     }
 
     btn.disabled = true;
+    btn.textContent = 'Salvando autorização…';
     msg.className = 'auth-message';
     msg.textContent = '';
 
     try {
-      const pendingConsent = savePendingConsent();
-
-      // Usuário já autenticado, mas ainda sem consentimento registrado:
-      // grava o consentimento agora, sem pedir outro Magic Link.
-      if (currentUser) {
-        btn.textContent = 'Salvando autorização…';
-        await persistConsentForCurrentUser(pendingConsent);
-        lastCloudError = null;
-        renderAccountState();
-        closeAuthModal();
-        await syncAllEntries();
-        trackEvent('cloud_consent_completed');
-        return;
-      }
-
-      // Primeiro acesso: guarda o consentimento localmente e envia o Magic Link.
-      // Depois do login, o consentimento será persistido no Supabase ANTES da sincronização.
-      btn.textContent = 'Enviando…';
-      await requestMagicLink(email);
-      msg.className = 'auth-message success';
-      msg.textContent = 'Link enviado. Abra seu email e use o link para voltar ao Diário.';
-      trackEvent('auth_link_requested');
+      const now = new Date().toISOString();
+      await persistConsentForCurrentUser({
+        termsAcceptedAt: now,
+        sensitiveDataConsentAt: now
+      });
+      lastCloudError = null;
+      renderAccountState();
+      closeAuthModal();
+      await syncAllEntries();
+      trackEvent('cloud_consent_completed');
     } catch (err) {
       console.error(err);
       msg.className = 'auth-message error';
-      msg.textContent = err && err.message ? err.message : 'Não foi possível concluir agora.';
+      msg.textContent = err && err.message ? err.message : 'Não foi possível salvar sua autorização agora.';
     } finally {
-      if (currentUser && !cloudConsentGranted) {
-        btn.textContent = 'Autorizar e sincronizar';
-      } else if (!currentUser) {
-        btn.textContent = 'Enviar link de acesso';
-      }
+      btn.textContent = 'Autorizar e sincronizar';
       updateAuthSubmitState();
     }
   });
@@ -2475,9 +2485,10 @@
       await syncAllEntries();
       trackEvent('auth_completed');
     } else {
-      // Conta existe, mas ainda não há consentimento válido para esta versão.
-      // Não lê nem envia os registros até o usuário autorizar.
+      // Primeira autorização desta conta (ou versão nova da política).
+      // Agora que sabemos quem é o usuário, mostramos as caixas.
       setCloudStatus('Conta conectada · autorize a sincronização para usar a nuvem.');
+      openAuthModal();
     }
   }
 
@@ -2514,6 +2525,7 @@
         await syncAllEntries();
       } else {
         setCloudStatus('Conta conectada · autorize a sincronização para usar a nuvem.');
+        setTimeout(openAuthModal, 0);
       }
     }
   }
