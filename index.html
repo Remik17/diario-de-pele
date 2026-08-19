@@ -1261,6 +1261,10 @@
   const SUPABASE_URL = 'https://zpmfzohglitzehnqmqvh.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwbWZ6b2hnbGl0emVobnFtcXZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0ODIwNzAsImV4cCI6MjEwMjA1ODA3MH0.xJIHS4PPGDfkJzFXXbUeaCE9uah_fMBQyBIE2wjtcHs';
   const SUPABASE_TABLE = 'registros';
+  const CONSENT_TABLE = 'user_consents';
+  const TERMS_VERSION = '1.0';
+  const PRIVACY_VERSION = '1.0';
+  const PENDING_CONSENT_KEY = 'diario-de-pele:pending-consent';
   const ENABLE_PRODUCT_EVENTS = false; // ative só depois de criar a tabela eventos_produto
 
   const cloudConfigured =
@@ -1285,6 +1289,7 @@
   let viewMonth = new Date().getMonth(); // mês do calendário sendo exibido (0-11)
   let currentUser = null;
   let cloudSyncRunning = false;
+  let cloudConsentGranted = false;
   let lastCloudError = null;
 
   const $ = (id) => document.getElementById(id);
@@ -1352,6 +1357,114 @@
     else el.style.color = '';
   }
 
+  function savePendingConsent(){
+    const payload = {
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
+      termsAcceptedAt: new Date().toISOString(),
+      sensitiveDataConsentAt: new Date().toISOString()
+    };
+    try {
+      window.localStorage.setItem(PENDING_CONSENT_KEY, JSON.stringify(payload));
+    } catch (e) {
+      console.warn('Não foi possível guardar o consentimento pendente localmente:', e);
+    }
+    return payload;
+  }
+
+  function loadPendingConsent(){
+    try {
+      const raw = window.localStorage.getItem(PENDING_CONSENT_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || parsed.termsVersion !== TERMS_VERSION || parsed.privacyVersion !== PRIVACY_VERSION) return null;
+      return parsed;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function clearPendingConsent(){
+    try {
+      window.localStorage.removeItem(PENDING_CONSENT_KEY);
+    } catch (e) {}
+  }
+
+  async function fetchCurrentConsent(){
+    if (!supabaseClient || !currentUser) return null;
+    const { data, error } = await supabaseClient
+      .from(CONSENT_TABLE)
+      .select('user_id,terms_version,privacy_version,terms_accepted_at,sensitive_data_consent_at')
+      .eq('user_id', currentUser.id)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data || null;
+  }
+
+  function consentIsCurrent(row){
+    return !!(
+      row &&
+      row.terms_version === TERMS_VERSION &&
+      row.privacy_version === PRIVACY_VERSION &&
+      row.terms_accepted_at &&
+      row.sensitive_data_consent_at
+    );
+  }
+
+  async function persistConsentForCurrentUser(payload){
+    if (!supabaseClient || !currentUser || !payload) return false;
+
+    const row = {
+      user_id: currentUser.id,
+      terms_version: TERMS_VERSION,
+      privacy_version: PRIVACY_VERSION,
+      terms_accepted_at: payload.termsAcceptedAt || new Date().toISOString(),
+      sensitive_data_consent_at: payload.sensitiveDataConsentAt || new Date().toISOString()
+    };
+
+    const { error } = await supabaseClient
+      .from(CONSENT_TABLE)
+      .upsert(row, { onConflict: 'user_id', ignoreDuplicates: false });
+
+    if (error) throw error;
+
+    cloudConsentGranted = true;
+    clearPendingConsent();
+    return true;
+  }
+
+  async function ensureCloudConsent(){
+    if (!supabaseClient || !currentUser) {
+      cloudConsentGranted = false;
+      return false;
+    }
+
+    try {
+      const existing = await fetchCurrentConsent();
+
+      if (consentIsCurrent(existing)) {
+        cloudConsentGranted = true;
+        clearPendingConsent();
+        return true;
+      }
+
+      const pending = loadPendingConsent();
+      if (pending) {
+        await persistConsentForCurrentUser(pending);
+        return true;
+      }
+
+      cloudConsentGranted = false;
+      return false;
+    } catch (err) {
+      console.error('Falha ao verificar consentimento:', err);
+      cloudConsentGranted = false;
+      lastCloudError = err;
+      return false;
+    }
+  }
+
   function renderAccountState(){
     const accountBtn = $('accountBtn');
     const logoutBtn = $('logoutBtn');
@@ -1379,13 +1492,21 @@
     }
 
     if (currentUser) {
-      accountBtn.textContent = cloudSyncRunning ? 'Sincronizando…' : 'Diário salvo ✓';
-      accountBtn.disabled = cloudSyncRunning;
       logoutBtn.style.display = 'inline-block';
       email.style.display = 'inline-block';
       email.textContent = currentUser.email || 'conta conectada';
-      if (!cloudSyncRunning && !lastCloudError) setCloudStatus('Sincronização ativa · histórico protegido na sua conta.', 'success');
-      if (privacy) privacy.textContent = 'Seu histórico fica neste dispositivo e é sincronizado com sua conta. Você pode sair a qualquer momento sem apagar a cópia local.';
+
+      if (!cloudConsentGranted) {
+        accountBtn.textContent = 'Autorizar sincronização';
+        accountBtn.disabled = false;
+        setCloudStatus('Conta conectada · autorização necessária para sincronizar seus registros.');
+        if (privacy) privacy.textContent = 'Sua conta está conectada, mas seus registros só serão sincronizados após sua autorização específica. Até lá, continuam neste dispositivo.';
+      } else {
+        accountBtn.textContent = cloudSyncRunning ? 'Sincronizando…' : 'Diário salvo ✓';
+        accountBtn.disabled = cloudSyncRunning;
+        if (!cloudSyncRunning && !lastCloudError) setCloudStatus('Sincronização ativa · histórico protegido na sua conta.', 'success');
+        if (privacy) privacy.textContent = 'Seu histórico fica neste dispositivo e é sincronizado com sua conta. Você pode sair a qualquer momento sem apagar a cópia local.';
+      }
     } else {
       accountBtn.disabled = false;
       accountBtn.textContent = 'Salvar meu Diário';
@@ -1405,12 +1526,25 @@
       alert('A sincronização em nuvem está indisponível agora. O Diário continua funcionando e salvando neste dispositivo.');
       return;
     }
-    if (currentUser) return;
+    if (currentUser && cloudConsentGranted) return;
+
     $('authMessage').textContent = '';
     $('authMessage').className = 'auth-message';
+
+    if (currentUser) {
+      $('authEmail').value = currentUser.email || '';
+      $('authEmail').disabled = true;
+      $('authSubmitBtn').textContent = 'Autorizar e sincronizar';
+    } else {
+      $('authEmail').disabled = false;
+      $('authSubmitBtn').textContent = 'Enviar link de acesso';
+    }
+
     $('authOverlay').classList.add('visible');
     updateAuthSubmitState();
-    setTimeout(() => $('authEmail').focus(), 50);
+    setTimeout(() => {
+      if (!currentUser) $('authEmail').focus();
+    }, 50);
   }
 
   function closeAuthModal(){
@@ -1424,7 +1558,9 @@
     const btn = $('authSubmitBtn');
     if (!emailInput || !terms || !sensitive || !btn) return;
 
-    const emailReady = emailInput.value.trim() !== '' && emailInput.checkValidity();
+    const emailReady = currentUser
+      ? true
+      : (emailInput.value.trim() !== '' && emailInput.checkValidity());
     btn.disabled = !(emailReady && terms.checked && sensitive.checked);
   }
 
@@ -1447,7 +1583,7 @@
   }
 
   async function fetchCloudEntries(){
-    if (!supabaseClient || !currentUser) return [];
+    if (!supabaseClient || !currentUser || !cloudConsentGranted) return [];
     const { data, error } = await supabaseClient
       .from(SUPABASE_TABLE)
       .select('date,state,sleep,stress,triggers,locations,basics,note,created_at,updated_at')
@@ -1457,7 +1593,7 @@
   }
 
   async function upsertRows(rows){
-    if (!rows.length || !supabaseClient || !currentUser) return;
+    if (!rows.length || !supabaseClient || !currentUser || !cloudConsentGranted) return;
     const { error } = await supabaseClient
       .from(SUPABASE_TABLE)
       .upsert(rows, { onConflict: 'user_id,date', ignoreDuplicates: false });
@@ -1465,7 +1601,7 @@
   }
 
   async function syncAllEntries(){
-    if (!supabaseClient || !currentUser || cloudSyncRunning) return;
+    if (!supabaseClient || !currentUser || !cloudConsentGranted || cloudSyncRunning) return;
     cloudSyncRunning = true;
     lastCloudError = null;
     renderAccountState();
@@ -1520,7 +1656,7 @@
   }
 
   async function syncSingleEntry(key){
-    if (!supabaseClient || !currentUser || !entries[key]) return;
+    if (!supabaseClient || !currentUser || !cloudConsentGranted || !entries[key]) return;
     setCloudStatus('Sincronizando…');
     try {
       await upsertRows([localEntryToRow(entries[key], currentUser.id)]);
@@ -2236,7 +2372,7 @@
 
   // ---------- Conta / Auth ----------
   $('accountBtn').addEventListener('click', () => {
-    if (currentUser) return;
+    if (currentUser && cloudConsentGranted) return;
     openAuthModal();
   });
   $('authCloseBtn').addEventListener('click', closeAuthModal);
@@ -2256,7 +2392,7 @@
     const termsAccepted = $('termsConsent').checked;
     const sensitiveDataAccepted = $('sensitiveDataConsent').checked;
 
-    if (!email || !$('authEmail').checkValidity()) {
+    if (!currentUser && (!email || !$('authEmail').checkValidity())) {
       msg.className = 'auth-message error';
       msg.textContent = 'Digite um email válido para continuar.';
       updateAuthSubmitState();
@@ -2271,10 +2407,28 @@
     }
 
     btn.disabled = true;
-    btn.textContent = 'Enviando…';
     msg.className = 'auth-message';
     msg.textContent = '';
+
     try {
+      const pendingConsent = savePendingConsent();
+
+      // Usuário já autenticado, mas ainda sem consentimento registrado:
+      // grava o consentimento agora, sem pedir outro Magic Link.
+      if (currentUser) {
+        btn.textContent = 'Salvando autorização…';
+        await persistConsentForCurrentUser(pendingConsent);
+        lastCloudError = null;
+        renderAccountState();
+        closeAuthModal();
+        await syncAllEntries();
+        trackEvent('cloud_consent_completed');
+        return;
+      }
+
+      // Primeiro acesso: guarda o consentimento localmente e envia o Magic Link.
+      // Depois do login, o consentimento será persistido no Supabase ANTES da sincronização.
+      btn.textContent = 'Enviando…';
       await requestMagicLink(email);
       msg.className = 'auth-message success';
       msg.textContent = 'Link enviado. Abra seu email e use o link para voltar ao Diário.';
@@ -2282,9 +2436,13 @@
     } catch (err) {
       console.error(err);
       msg.className = 'auth-message error';
-      msg.textContent = err && err.message ? err.message : 'Não foi possível enviar o acesso agora.';
+      msg.textContent = err && err.message ? err.message : 'Não foi possível concluir agora.';
     } finally {
-      btn.textContent = 'Enviar link de acesso';
+      if (currentUser && !cloudConsentGranted) {
+        btn.textContent = 'Autorizar e sincronizar';
+      } else if (!currentUser) {
+        btn.textContent = 'Enviar link de acesso';
+      }
       updateAuthSubmitState();
     }
   });
@@ -2297,38 +2455,71 @@
       return;
     }
     currentUser = null;
+    cloudConsentGranted = false;
     lastCloudError = null;
     renderAccountState();
     updateStorageStatus();
     updateJourneyCard(false);
   });
 
+  async function handleSignedIn(){
+    if (!currentUser) return;
+
+    const consentOk = await ensureCloudConsent();
+    renderAccountState();
+    updateStorageStatus();
+    updateJourneyCard(false);
+
+    if (consentOk) {
+      closeAuthModal();
+      await syncAllEntries();
+      trackEvent('auth_completed');
+    } else {
+      // Conta existe, mas ainda não há consentimento válido para esta versão.
+      // Não lê nem envia os registros até o usuário autorizar.
+      setCloudStatus('Conta conectada · autorize a sincronização para usar a nuvem.');
+    }
+  }
+
   async function initCloudSession(){
     renderAccountState();
     if (!supabaseClient) return;
 
     const { data, error } = await supabaseClient.auth.getSession();
-    if (!error && data && data.session) currentUser = data.session.user;
+    if (!error && data && data.session) {
+      currentUser = data.session.user;
+      await ensureCloudConsent();
+    }
     renderAccountState();
 
     supabaseClient.auth.onAuthStateChange((event, session) => {
       currentUser = session ? session.user : null;
+      if (!currentUser) cloudConsentGranted = false;
       lastCloudError = null;
       renderAccountState();
       updateStorageStatus();
       updateJourneyCard(false);
+
       if (event === 'SIGNED_IN' && currentUser) {
-        closeAuthModal();
-        setTimeout(() => syncAllEntries(), 0);
-        trackEvent('auth_completed');
+        setTimeout(() => {
+          handleSignedIn().catch(err => {
+            console.error('Falha ao concluir login/consentimento:', err);
+          });
+        }, 0);
       }
     });
 
-    if (currentUser) await syncAllEntries();
+    if (currentUser) {
+      if (cloudConsentGranted) {
+        await syncAllEntries();
+      } else {
+        setCloudStatus('Conta conectada · autorize a sincronização para usar a nuvem.');
+      }
+    }
   }
 
   window.addEventListener('online', () => {
-    if (currentUser) syncAllEntries();
+    if (currentUser && cloudConsentGranted) syncAllEntries();
   });
 
   // ---------- Init ----------
