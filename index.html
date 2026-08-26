@@ -1137,6 +1137,105 @@
     }
   }
 
+
+
+  /* ---------- Retrato após 7 registros ---------- */
+  .portrait-intro {
+    margin: 0 0 16px;
+    color: var(--ink-soft);
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+
+  .portrait-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+
+  .portrait-card {
+    padding: 16px 17px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--paper);
+  }
+
+  .portrait-card-label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 7px;
+  }
+
+  .portrait-card-main {
+    font-family: var(--serif);
+    font-size: 20px;
+    line-height: 1.2;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+
+  .portrait-card-detail {
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+  }
+
+  .portrait-section-title {
+    margin: 24px 0 10px;
+    font-family: var(--serif);
+    font-size: 21px;
+    font-weight: 500;
+  }
+
+  .portrait-section-note {
+    margin: -2px 0 12px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--ink-faint);
+  }
+
+  .portrait-location-card {
+    padding: 15px 17px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--paper-card);
+    margin-bottom: 9px;
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+
+  .portrait-location-card strong {
+    color: var(--ink);
+  }
+
+  .portrait-signal-empty {
+    padding: 16px 18px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    color: var(--ink-soft);
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+
+  .portrait-evolves {
+    margin-top: 18px;
+    padding: 15px 17px;
+    border-left: 3px solid var(--accent-deep);
+    background: rgba(232,225,210,0.35);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+  }
+
+  .portrait-evolves strong {
+    color: var(--ink);
+  }
+
 </style>
 </head>
 <body>
@@ -2536,20 +2635,26 @@
 
   // ---------- Insights ----------
   const LOCKED_PREVIEWS = [
-    'Fatores que aparecem com mais frequência nos dias de maior reatividade',
-    'Como seus registros de sono se comparam aos dias de maior reatividade',
-    'Como seus níveis de estresse aparecem junto das mudanças da pele',
-    'Em quais regiões você registrou mais reações',
-    'Como os dias em que você fez o básico se comparam aos demais'
+    'Um resumo de como sua pele apareceu nos seus registros',
+    'Médias e frequências de sono e estresse',
+    'Fatores e regiões que mais aparecem no seu histórico',
+    'Como ficou sua constância na rotina básica',
+    'Sinais comparativos que começarem a aparecer nos seus próprios dados'
   ];
 
   function renderInsights(){
     const wrap = $('insightsWrap');
     const sortedKeys = Object.keys(entries).sort();
-    if ($('insightsTitle')) $('insightsTitle').textContent = sortedKeys.length >= STREAK_GOAL ? 'Seu primeiro retrato' : 'O que seus dados vão mostrar';
+    const total = sortedKeys.length;
 
-    if (sortedKeys.length < STREAK_GOAL) {
-      const remaining = STREAK_GOAL - sortedKeys.length;
+    if ($('insightsTitle')) {
+      $('insightsTitle').textContent = total >= STREAK_GOAL
+        ? (total === STREAK_GOAL ? 'Seu primeiro retrato' : 'Seu retrato atual')
+        : 'O que seus dados vão mostrar';
+    }
+
+    if (total < STREAK_GOAL) {
+      const remaining = STREAK_GOAL - total;
       wrap.innerHTML = `
         <div class="locked-grid">
           ${LOCKED_PREVIEWS.map(p => `<div class="locked-card"><span class="locked-icon">🔒</span><span>${p}</span></div>`).join('')}
@@ -2562,11 +2667,144 @@
       return;
     }
 
+    const allEntries = sortedKeys.map(key => entries[key]);
+
+    // ---------------------------------------------------------------
+    // RETRATO: informações descritivas que sempre aparecem após 7
+    // ---------------------------------------------------------------
+    const stateCounts = { calma: 0, leve: 0, reativa: 0, crise: 0 };
+    allEntries.forEach(entry => {
+      if (Object.prototype.hasOwnProperty.call(stateCounts, entry.state)) {
+        stateCounts[entry.state] += 1;
+      }
+    });
+
+    const sleepValues = allEntries
+      .map(e => Number(e.sleep))
+      .filter(v => Number.isFinite(v));
+    const sleepAvg = sleepValues.length ? avg(sleepValues) : null;
+    const lowSleepCount = sleepValues.filter(v => v < 6).length;
+
+    const stressValues = allEntries
+      .map(e => Number(e.stress))
+      .filter(v => Number.isFinite(v));
+    const stressAvg = stressValues.length ? avg(stressValues) : null;
+    const highStressCount = stressValues.filter(v => v >= 4).length;
+
+    const triggerCounts = {};
+    allEntries.forEach(entry => {
+      (entry.triggers || []).forEach(trigger => {
+        triggerCounts[trigger] = (triggerCounts[trigger] || 0) + 1;
+      });
+    });
+    const topTriggers = Object.entries(triggerCounts)
+      .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'))
+      .slice(0, 3);
+
+    const locationCounts = {};
+    allEntries.forEach(entry => {
+      (entry.locations || []).forEach(loc => {
+        locationCounts[loc] = (locationCounts[loc] || 0) + 1;
+      });
+    });
+    const topLocations = Object.entries(locationCounts)
+      .sort((a,b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'));
+
+    const basicsValues = allEntries.filter(e => e.basics != null);
+    const basicsYes = basicsValues.filter(e => e.basics === true).length;
+
+    const formatHours = (value) => {
+      if (value == null) return '—';
+      const rounded = Math.round(value * 10) / 10;
+      return `${String(rounded).replace('.', ',')}h`;
+    };
+
+    const triggerMain = topTriggers.length
+      ? `${escapeHtml(topTriggers[0][0])} · ${topTriggers[0][1]}x`
+      : 'Nenhum fator recorrente';
+    const triggerDetail = topTriggers.length
+      ? topTriggers.map(([name, count]) => `${escapeHtml(name)} (${count}x)`).join(' · ')
+      : 'Você ainda não marcou fatores suficientes para formar uma frequência.';
+
+    const locationMain = topLocations.length
+      ? `${escapeHtml(topLocations[0][0])} · ${topLocations[0][1]}x`
+      : 'Sem regiões recorrentes';
+    const locationDetail = topLocations.length
+      ? topLocations.slice(0,3).map(([name, count]) => `${escapeHtml(name)} (${count}x)`).join(' · ')
+      : 'As regiões aparecem apenas quando você registra pele reativa ou em crise.';
+
+    const stateDetail = [
+      `Calma ${stateCounts.calma}`,
+      `Leve ${stateCounts.leve}`,
+      `Reativa ${stateCounts.reativa}`,
+      `Crise ${stateCounts.crise}`
+    ].join(' · ');
+
+    const portraitHtml = `
+      <p class="portrait-intro">
+        Este retrato resume o que você registrou até agora. Ele descreve o seu histórico e continua mudando conforme novos dias são adicionados.
+      </p>
+
+      <div class="portrait-grid">
+        <div class="portrait-card">
+          <div class="portrait-card-label">Sua pele</div>
+          <div class="portrait-card-main">${total} registros</div>
+          <div class="portrait-card-detail">${stateDetail}</div>
+        </div>
+
+        <div class="portrait-card">
+          <div class="portrait-card-label">Sono</div>
+          <div class="portrait-card-main">${sleepAvg == null ? 'Sem média ainda' : `Média ${formatHours(sleepAvg)}`}</div>
+          <div class="portrait-card-detail">${
+            sleepValues.length
+              ? `${lowSleepCount} de ${sleepValues.length} registro${sleepValues.length === 1 ? '' : 's'} tiveram menos de 6h de sono.`
+              : 'Ainda não há registros de sono suficientes.'
+          }</div>
+        </div>
+
+        <div class="portrait-card">
+          <div class="portrait-card-label">Estresse</div>
+          <div class="portrait-card-main">${stressAvg == null ? 'Sem média ainda' : `Média ${String(Math.round(stressAvg * 10) / 10).replace('.', ',')}/5`}</div>
+          <div class="portrait-card-detail">${
+            stressValues.length
+              ? `Estresse 4–5 apareceu em ${highStressCount} de ${stressValues.length} registro${stressValues.length === 1 ? '' : 's'}.`
+              : 'Ainda não há registros de estresse suficientes.'
+          }</div>
+        </div>
+
+        <div class="portrait-card">
+          <div class="portrait-card-label">Fatores mais registrados</div>
+          <div class="portrait-card-main">${triggerMain}</div>
+          <div class="portrait-card-detail">${triggerDetail}</div>
+        </div>
+
+        <div class="portrait-card">
+          <div class="portrait-card-label">Regiões registradas</div>
+          <div class="portrait-card-main">${locationMain}</div>
+          <div class="portrait-card-detail">${locationDetail}</div>
+        </div>
+
+        <div class="portrait-card">
+          <div class="portrait-card-label">Rotina básica</div>
+          <div class="portrait-card-main">${
+            basicsValues.length ? `${basicsYes} de ${basicsValues.length}` : 'Sem dados ainda'
+          }</div>
+          <div class="portrait-card-detail">${
+            basicsValues.length
+              ? `Você marcou Limpeza + Hidratação como feitas em ${basicsYes} registro${basicsYes === 1 ? '' : 's'}.`
+              : 'Ainda não há registros suficientes sobre a rotina básica.'
+          }</div>
+        </div>
+      </div>
+    `;
+
+    // ---------------------------------------------------------------
+    // SINAIS: associações comparativas, somente quando há suporte
+    // ---------------------------------------------------------------
     const insights = [];
 
-    // Trigger -> next day severity
-    const allTriggers = TRIGGER_OPTIONS;
-    allTriggers.forEach(trigger => {
+    // Fator registrado -> reatividade no dia seguinte
+    TRIGGER_OPTIONS.forEach(trigger => {
       let withNext = [], withoutNext = [];
       sortedKeys.forEach(key => {
         const entry = entries[key];
@@ -2574,7 +2812,7 @@
         const nextEntry = entries[nextKey];
         if (!nextEntry) return;
         const sev = STATE_SEVERITY[nextEntry.state];
-        if (entry.triggers.includes(trigger)) withNext.push(sev);
+        if ((entry.triggers || []).includes(trigger)) withNext.push(sev);
         else withoutNext.push(sev);
       });
       if (withNext.length >= 3) {
@@ -2582,67 +2820,49 @@
         const avgWithout = withoutNext.length ? avg(withoutNext) : null;
         if (avgWithout !== null && avgWith - avgWithout >= 0.4) {
           insights.push({
-            text: `Nos dias após registrar <span class="insight-strong">${trigger.toLowerCase()}</span>, sua pele tende a piorar no dia seguinte.`
+            text: `No seu histórico até agora, registros com <span class="insight-strong">${escapeHtml(trigger.toLowerCase())}</span> foram seguidos por maior reatividade no dia seguinte do que os registros sem esse fator. Isso indica uma associação para observar, não uma causa confirmada.`
           });
         }
       }
     });
 
-    // Sleep correlation
+    // Sono
     const lowSleep = [], okSleep = [];
-    sortedKeys.forEach(key => {
-      const entry = entries[key];
+    allEntries.forEach(entry => {
+      const sleep = Number(entry.sleep);
+      if (!Number.isFinite(sleep)) return;
       const sev = STATE_SEVERITY[entry.state];
-      if (entry.sleep < 6) lowSleep.push(sev); else okSleep.push(sev);
+      if (sleep < 6) lowSleep.push(sev); else okSleep.push(sev);
     });
     if (lowSleep.length >= 3 && okSleep.length >= 3) {
       const diff = avg(lowSleep) - avg(okSleep);
       if (diff >= 0.35) {
-        insights.push({ text: `Dias com <span class="insight-strong">menos de 6h de sono</span> aparecem com pele mais reativa do que os demais.` });
+        insights.push({
+          text: `Nos seus registros até agora, dias com <span class="insight-strong">menos de 6h de sono</span> apresentaram maior reatividade média do que os demais. É um sinal do seu histórico para continuar acompanhando.`
+        });
       }
     }
 
-    // Stress correlation
+    // Estresse
     const highStress = [], lowStress = [];
-    sortedKeys.forEach(key => {
-      const entry = entries[key];
-      if (entry.stress == null) return;
+    allEntries.forEach(entry => {
+      const stress = Number(entry.stress);
+      if (!Number.isFinite(stress)) return;
       const sev = STATE_SEVERITY[entry.state];
-      if (entry.stress >= 4) highStress.push(sev); else lowStress.push(sev);
+      if (stress >= 4) highStress.push(sev); else lowStress.push(sev);
     });
     if (highStress.length >= 3 && lowStress.length >= 3) {
       const diff = avg(highStress) - avg(lowStress);
       if (diff >= 0.35) {
-        insights.push({ text: `Dias de <span class="insight-strong">estresse alto (4-5)</span> costumam vir acompanhados de mais reatividade na pele.` });
+        insights.push({
+          text: `Nos seus registros até agora, <span class="insight-strong">estresse alto (4–5)</span> apareceu junto de maior reatividade média do que níveis mais baixos. Isso é uma associação observada no histórico, não prova de causa.`
+        });
       }
     }
 
-    // Localização das reações
-    const LOCATION_NOTE = {
-      'Queixo/Mandíbula': 'essa região costuma estar mais ligada a fatores hormonais (ciclo, estresse, oscilações hormonais)',
-      'Testa': 'essa região costuma estar mais ligada a fatores externos — suor, cabelo encostando na pele ou alimentação',
-      'Bochechas': 'vale observar contato com celular, fronha e produtos que tocam essa região',
-      'Nariz': 'costuma ser a região naturalmente mais oleosa do rosto — vale observar produtos oclusivos e frequência de limpeza',
-      'Nuca': 'costuma estar ligada a atrito de cabelo, suor ou produtos capilares (condicionador, leave-in) escorrendo na pele',
-      'Ombros': 'geralmente é atrito — alça de mochila, sutiã ou roupa apertada',
-      'Peito': 'costuma envolver suor, tecido sintético/apertado ou oscilações hormonais',
-      'Costas': 'costuma estar ligada a suor, atrito de roupa (alça, mochila) ou demora pra tomar banho após treino',
-      'Abdômen': 'região menos comum — quando aparece, vale observar atrito de roupa e oscilações hormonais'
-    };
-    LOCATION_OPTIONS.forEach(loc => {
-      const count = sortedKeys.filter(key => entries[key].locations && entries[key].locations.includes(loc)).length;
-      if (count >= 3) {
-        const note = LOCATION_NOTE[loc] ? ` — ${LOCATION_NOTE[loc]}.` : '.';
-        insights.push({
-          text: `Suas reações apareceram na região <span class="insight-strong">${loc.toLowerCase()}</span> em ${count} registros${note}`
-        });
-      }
-    });
-
-    // "Fez o básico" correlation
+    // Rotina básica
     const withBasics = [], withoutBasics = [];
-    sortedKeys.forEach(key => {
-      const entry = entries[key];
+    allEntries.forEach(entry => {
       if (entry.basics == null) return;
       const sev = STATE_SEVERITY[entry.state];
       if (entry.basics) withBasics.push(sev); else withoutBasics.push(sev);
@@ -2650,21 +2870,70 @@
     if (withBasics.length >= 3 && withoutBasics.length >= 3) {
       const diff = avg(withoutBasics) - avg(withBasics);
       if (diff >= 0.35) {
-        insights.push({ text: `Nos dias em que você <span class="insight-strong">pulou a limpeza/hidratação</span>, sua pele tende a aparecer mais reativa.` });
+        insights.push({
+          text: `No seu histórico até agora, os dias em que você marcou que <span class="insight-strong">não fez Limpeza + Hidratação</span> apresentaram maior reatividade média do que os dias em que fez o básico. Continue observando se essa diferença se mantém.`
+        });
       }
     }
 
-    if (insights.length === 0) {
-      wrap.innerHTML = `<div class="empty-state">Ainda sem padrão claro nos dados até agora — isso também é informação. Continue registrando.</div>`;
-      return;
+    const signalsHtml = `
+      <h3 class="portrait-section-title">Sinais no seu histórico</h3>
+      <p class="portrait-section-note">
+        Aqui entram apenas comparações que já têm dados suficientes e uma diferença visível. Uma associação não significa que um fator seja a causa da mudança na pele.
+      </p>
+      ${
+        insights.length
+          ? insights.map(i => `
+              <div class="insight-card">
+                <span class="insight-mark">›</span>
+                <span>${i.text}</span>
+              </div>
+            `).join('')
+          : `<div class="portrait-signal-empty">
+               Ainda não apareceu uma associação comparativa clara. Isso também é informação: continue registrando para ver se algum sinal fica mais consistente com o tempo.
+             </div>`
+      }
+    `;
+
+    // ---------------------------------------------------------------
+    // REGIÕES: informação educativa, sem inferir causa pelo local
+    // ---------------------------------------------------------------
+    const LOCATION_NOTE = {
+      'Queixo/Mandíbula': 'Pode valer observar se essa região coincide com mudanças hormonais, ciclo menstrual, estresse ou outros fatores do seu próprio histórico.',
+      'Testa': 'Pode valer observar fatores de contato e rotina, como suor, cabelo ou produtos usados próximos à região.',
+      'Bochechas': 'Pode valer observar fatores de contato, como celular, fronha e produtos que encostam nessa área.',
+      'Nariz': 'Pode valer observar oleosidade, produtos usados na região e mudanças na rotina de cuidados.',
+      'Nuca': 'Pode valer observar suor, atrito, cabelo e produtos capilares que entram em contato com a pele.',
+      'Ombros': 'Pode valer observar suor e atrito de roupas, alças ou acessórios.',
+      'Peito': 'Pode valer observar suor, atrito de tecidos e outras mudanças de rotina que coincidam com os registros.',
+      'Costas': 'Pode valer observar suor, atrito de roupas ou mochila e o que acontece na rotina após exercícios.',
+      'Abdômen': 'Pode valer observar atrito de roupas e outras mudanças de rotina que coincidam com os registros.'
+    };
+
+    let locationsHtml = '';
+    if (topLocations.length) {
+      locationsHtml = `
+        <h3 class="portrait-section-title">Possibilidades para observar por região</h3>
+        <p class="portrait-section-note">
+          A localização pode sugerir fatores que vale acompanhar, mas <strong>a região sozinha não identifica a causa</strong>. Use estas possibilidades apenas como pistas para comparar com o restante do seu histórico.
+        </p>
+        ${topLocations.slice(0, 4).map(([loc, count]) => `
+          <div class="portrait-location-card">
+            <strong>${escapeHtml(loc)}</strong> apareceu em ${count} registro${count === 1 ? '' : 's'}.
+            ${LOCATION_NOTE[loc] ? escapeHtml(LOCATION_NOTE[loc]) : 'Observe quais outros fatores aparecem junto dessa região no seu histórico.'}
+          </div>
+        `).join('')}
+      `;
     }
 
-    wrap.innerHTML = insights.map(i => `
-      <div class="insight-card">
-        <span class="insight-mark">›</span>
-        <span>${i.text}</span>
+    const evolvesHtml = `
+      <div class="portrait-evolves">
+        <strong>Este retrato continua evoluindo.</strong>
+        Você tem ${total} registros no histórico. Os próximos dias entram automaticamente nas médias, frequências e comparações — o Diário não termina no 7º registro.
       </div>
-    `).join('');
+    `;
+
+    wrap.innerHTML = portraitHtml + signalsHtml + locationsHtml + evolvesHtml;
   }
 
   function avg(arr){ return arr.reduce((a,b) => a+b, 0) / arr.length; }
