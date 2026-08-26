@@ -963,6 +963,36 @@
     .account-email { max-width: 52vw; }
   }
 
+
+  .legal-footer{
+    margin: 28px auto 16px;
+    padding: 16px 12px 8px;
+    max-width: 980px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    flex-wrap: wrap;
+    text-align: center;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--muted, #777);
+  }
+
+  .legal-footer a{
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .legal-footer a:hover{
+    opacity: .78;
+  }
+
+  .legal-footer-separator{
+    opacity: .65;
+  }
+
 </style>
 </head>
 <body>
@@ -2560,6 +2590,15 @@
   initCloudSession();
 })();
 </script>
+
+
+  <footer class="legal-footer" aria-label="Links legais">
+    <span>© 2026 Diário de Pele</span>
+    <span class="legal-footer-separator">·</span>
+    <a href="termos.html">Termos de Uso</a>
+    <span class="legal-footer-separator">·</span>
+    <a href="privacidade.html">Política de Privacidade</a>
+  </footer>
 
 </body>
 </html>
