@@ -2820,7 +2820,7 @@
         const avgWithout = withoutNext.length ? avg(withoutNext) : null;
         if (avgWithout !== null && avgWith - avgWithout >= 0.4) {
           insights.push({
-            text: `No seu histórico até agora, registros com <span class="insight-strong">${escapeHtml(trigger.toLowerCase())}</span> foram seguidos por maior reatividade no dia seguinte do que os registros sem esse fator. Isso indica uma associação para observar, não uma causa confirmada.`
+            text: `<span class="insight-strong">${escapeHtml(trigger)}</span> se destacou no seu histórico. Nos dias em que você registrou esse fator, a reatividade no dia seguinte foi maior do que nos demais dias. Continue acompanhando para ver se esse padrão se mantém conforme seu histórico cresce.`
           });
         }
       }
@@ -2838,7 +2838,7 @@
       const diff = avg(lowSleep) - avg(okSleep);
       if (diff >= 0.35) {
         insights.push({
-          text: `Nos seus registros até agora, dias com <span class="insight-strong">menos de 6h de sono</span> apresentaram maior reatividade média do que os demais. É um sinal do seu histórico para continuar acompanhando.`
+          text: `<span class="insight-strong">Pouco sono se destacou no seu histórico.</span> Nos dias com menos de 6h de sono, sua pele apresentou maior reatividade média do que nos dias em que você dormiu mais. Veja se essa diferença continua aparecendo conforme seu histórico cresce.`
         });
       }
     }
@@ -2855,7 +2855,7 @@
       const diff = avg(highStress) - avg(lowStress);
       if (diff >= 0.35) {
         insights.push({
-          text: `Nos seus registros até agora, <span class="insight-strong">estresse alto (4–5)</span> apareceu junto de maior reatividade média do que níveis mais baixos. Isso é uma associação observada no histórico, não prova de causa.`
+          text: `<span class="insight-strong">Estresse alto apareceu junto de maior reatividade.</span> Nos registros com estresse 4–5, a reatividade média da sua pele foi maior do que nos demais registros. Continue acompanhando para ver se esse padrão se mantém.`
         });
       }
     }
@@ -2871,7 +2871,7 @@
       const diff = avg(withoutBasics) - avg(withBasics);
       if (diff >= 0.35) {
         insights.push({
-          text: `No seu histórico até agora, os dias em que você marcou que <span class="insight-strong">não fez Limpeza + Hidratação</span> apresentaram maior reatividade média do que os dias em que fez o básico. Continue observando se essa diferença se mantém.`
+          text: `<span class="insight-strong">Sua rotina básica também mostrou uma diferença.</span> Nos dias em que você não marcou Limpeza + Hidratação, sua pele apresentou maior reatividade média do que nos dias em que fez o básico. Veja se essa diferença continua aparecendo conforme novos registros entram no histórico.`
         });
       }
     }
@@ -2879,7 +2879,7 @@
     const signalsHtml = `
       <h3 class="portrait-section-title">Sinais no seu histórico</h3>
       <p class="portrait-section-note">
-        Aqui entram apenas comparações que já têm dados suficientes e uma diferença visível. Uma associação não significa que um fator seja a causa da mudança na pele.
+        Os sinais abaixo mostram padrões encontrados no seu histórico. Eles ajudam a indicar o que vale acompanhar, mas não identificam sozinhos a causa de uma reação.
       </p>
       ${
         insights.length
