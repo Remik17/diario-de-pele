@@ -993,6 +993,150 @@
     opacity: .65;
   }
 
+
+
+  /* ---------- Painel pós-registro ---------- */
+  .post-save-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 260;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(36,41,31,0.58);
+  }
+  .post-save-overlay.visible { display: flex; }
+
+  .post-save-dialog {
+    width: min(470px, 100%);
+    max-height: min(720px, calc(100vh - 32px));
+    overflow-y: auto;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: 0 18px 60px rgba(0,0,0,0.24);
+  }
+
+  .post-save-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .post-save-kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 6px;
+  }
+
+  .post-save-title {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 25px;
+    font-weight: 500;
+    line-height: 1.15;
+  }
+
+  .post-save-close {
+    border: 0;
+    background: transparent;
+    color: var(--ink-faint);
+    font-size: 25px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 4px;
+  }
+
+  .post-save-progress {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: rgba(232,225,210,0.45);
+    padding: 15px 16px;
+    margin-bottom: 14px;
+  }
+
+  .post-save-progress-label {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 8px;
+  }
+
+  .post-save-dots {
+    display: flex;
+    gap: 7px;
+    margin: 2px 0 9px;
+  }
+
+  .post-save-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1px solid var(--line-strong, #aaa28f);
+    background: transparent;
+  }
+
+  .post-save-dot.filled {
+    background: var(--accent-deep);
+    border-color: var(--accent-deep);
+  }
+
+  .post-save-progress-copy,
+  .post-save-storage-copy,
+  .post-save-return-copy {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+  }
+
+  .post-save-storage {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+  }
+
+  .post-save-storage-title {
+    font-weight: 600;
+    font-size: 13.5px;
+    margin-bottom: 3px;
+  }
+
+  .post-save-return {
+    margin: 2px 0 16px;
+    padding: 0 2px;
+  }
+
+  .post-save-return strong { color: var(--ink); }
+
+  .post-save-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .post-save-actions .btn { flex: 1 1 180px; }
+
+  @media (max-width: 560px) {
+    .post-save-overlay {
+      align-items: flex-end;
+      padding: 0;
+    }
+    .post-save-dialog {
+      width: 100%;
+      max-height: 86vh;
+      border-radius: 18px 18px 0 0;
+      padding: 22px 18px calc(20px + env(safe-area-inset-bottom));
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -1220,6 +1364,37 @@
 </div>
 
 <button type="button" class="sos-float-btn" id="sosFloatBtn">🆘 Kit SOS Pele</button>
+
+
+
+<div class="post-save-overlay" id="postSaveOverlay" role="dialog" aria-modal="true" aria-labelledby="postSaveTitle">
+  <div class="post-save-dialog">
+    <div class="post-save-head">
+      <div>
+        <div class="post-save-kicker">Diário de Pele</div>
+        <h2 class="post-save-title" id="postSaveTitle">Registro salvo</h2>
+      </div>
+      <button type="button" class="post-save-close" id="postSaveCloseBtn" aria-label="Fechar">×</button>
+    </div>
+
+    <div class="post-save-progress">
+      <div class="post-save-progress-label" id="postSaveProgressLabel"></div>
+      <div class="post-save-dots" id="postSaveDots" aria-hidden="true"></div>
+      <p class="post-save-progress-copy" id="postSaveProgressCopy"></p>
+    </div>
+
+    <div class="post-save-storage">
+      <div class="post-save-storage-title" id="postSaveStorageTitle"></div>
+      <p class="post-save-storage-copy" id="postSaveStorageCopy"></p>
+    </div>
+
+    <div class="post-save-return">
+      <p class="post-save-return-copy" id="postSaveReturnCopy"></p>
+    </div>
+
+    <div class="post-save-actions" id="postSaveActions"></div>
+  </div>
+</div>
 
 
 <div class="auth-overlay" id="authOverlay" role="dialog" aria-modal="true" aria-labelledby="authTitle">
@@ -1805,9 +1980,12 @@
 
     flame.classList.toggle('active', loggedToday);
 
-    if (totalDays >= STREAK_GOAL) {
+    if (totalDays > STREAK_GOAL) {
       bar.classList.add('complete');
-      text.textContent = `Primeiros ${STREAK_GOAL} registros completos — ${totalDays} registro${totalDays === 1 ? '' : 's'} no total`;
+      text.textContent = `${totalDays} registros no seu histórico — seu primeiro retrato já está liberado`;
+    } else if (totalDays === STREAK_GOAL) {
+      bar.classList.add('complete');
+      text.textContent = `${STREAK_GOAL} registros — seu primeiro retrato está pronto`;
     } else {
       bar.classList.remove('complete');
       text.textContent = `${totalDays}/${STREAK_GOAL} registros para seu primeiro retrato`;
@@ -2002,6 +2180,7 @@
       alert('Não é possível registrar um dia no futuro.');
       return;
     }
+    const wasExistingEntry = !!entries[key];
     const triggers = Array.from(document.querySelectorAll('#triggerChips .chip.selected')).map(c => c.dataset.value);
     const locations = Array.from(document.querySelectorAll('#locationChips .chip.selected')).map(c => c.dataset.value);
     entries[key] = {
@@ -2042,7 +2221,14 @@
 
     updateJourneyCard(true);
     trackEvent(Object.keys(entries).length === 1 ? 'first_entry_saved' : (Object.keys(entries).length === STREAK_GOAL ? 'seventh_entry_saved' : 'entry_saved'));
+
     if (currentUser) await syncSingleEntry(key);
+
+    // Mostra o painel apenas quando um novo dia é adicionado.
+    // Editar um registro existente mantém apenas a confirmação discreta.
+    if (!wasExistingEntry) {
+      showPostSavePanel(key);
+    }
   });
 
   function updateJourneyCard(justSaved=false){
@@ -2061,8 +2247,10 @@
 
     card.classList.add('visible');
     if (count >= STREAK_GOAL) {
-      title.textContent = justSaved && count === STREAK_GOAL ? 'Seu primeiro retrato está pronto.' : 'Seu histórico está ficando mais útil.';
-      text.textContent = `${count} registros acumulados. Quanto mais histórico, mais contexto você terá para observar associações que se repetem.`;
+      title.textContent = justSaved && count === STREAK_GOAL ? 'Seu primeiro retrato está pronto.' : `${count} registros no seu histórico.`;
+      text.textContent = count === STREAK_GOAL
+        ? 'O primeiro retrato foi liberado. Continue registrando normalmente: o histórico continua crescendo depois dos 7 registros.'
+        : `Seu primeiro retrato já está liberado e o contador continua crescendo. Quanto mais histórico, mais contexto você terá para comparar associações que se repetem.`;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'btn btn-small';
@@ -2081,11 +2269,149 @@
       const cloud = document.createElement('button');
       cloud.type = 'button';
       cloud.className = 'btn secondary btn-small';
-      cloud.textContent = 'Salvar meu Diário';
+      cloud.textContent = 'Proteger e sincronizar meu Diário';
       cloud.addEventListener('click', () => { trackEvent('account_cta_clicked'); openAuthModal(); });
       actions.appendChild(cloud);
     }
   }
+
+
+  function closePostSavePanel(){
+    const overlay = $('postSaveOverlay');
+    if (overlay) overlay.classList.remove('visible');
+  }
+
+  function postSaveMotivation(count){
+    if (count === 1) {
+      return 'Seu histórico começou. Um registro isolado conta pouco — volte a registrar para começar a comparar o que estava acontecendo quando sua pele mudou.';
+    }
+    if (count < 5) {
+      return `Você já acumulou ${count} registros. Cada novo registro adiciona contexto ao seu histórico.`;
+    }
+    if (count < STREAK_GOAL) {
+      const remaining = STREAK_GOAL - count;
+      return `Faltam só ${remaining} registro${remaining === 1 ? '' : 's'} para liberar seu primeiro retrato. Eles não precisam ser consecutivos.`;
+    }
+    if (count === STREAK_GOAL) {
+      return 'Seu primeiro retrato está pronto. Agora o Diário continua acumulando histórico: quanto mais você registra, mais contexto terá para comparar seus próprios padrões.';
+    }
+    return `Você já tem ${count} registros no histórico. Continue registrando normalmente — o Diário não para no primeiro retrato.`;
+  }
+
+  function showPostSavePanel(key){
+    const overlay = $('postSaveOverlay');
+    if (!overlay) return;
+
+    const count = Object.keys(entries).length;
+    const isToday = key === todayKey(0);
+    const title = $('postSaveTitle');
+    const progressLabel = $('postSaveProgressLabel');
+    const dots = $('postSaveDots');
+    const progressCopy = $('postSaveProgressCopy');
+    const storageTitle = $('postSaveStorageTitle');
+    const storageCopy = $('postSaveStorageCopy');
+    const returnCopy = $('postSaveReturnCopy');
+    const actions = $('postSaveActions');
+
+    title.textContent = isToday ? 'Registro de hoje salvo' : 'Registro salvo';
+
+    if (count < STREAK_GOAL) {
+      progressLabel.textContent = `🔥 ${count} de ${STREAK_GOAL} registros`;
+      dots.style.display = 'flex';
+      dots.innerHTML = Array.from({length: STREAK_GOAL}, (_, i) =>
+        `<span class="post-save-dot${i < count ? ' filled' : ''}"></span>`
+      ).join('');
+      const remaining = STREAK_GOAL - count;
+      progressCopy.textContent = `Faltam ${remaining} registro${remaining === 1 ? '' : 's'} para liberar seu primeiro retrato.`;
+    } else if (count === STREAK_GOAL) {
+      progressLabel.textContent = `🔥 ${count} registros — primeiro retrato liberado`;
+      dots.style.display = 'flex';
+      dots.innerHTML = Array.from({length: STREAK_GOAL}, () =>
+        '<span class="post-save-dot filled"></span>'
+      ).join('');
+      progressCopy.textContent = 'Você chegou ao primeiro marco. Seus próximos registros continuam sendo adicionados ao histórico.';
+    } else {
+      progressLabel.textContent = `🔥 ${count} registros no seu histórico`;
+      dots.style.display = 'none';
+      dots.innerHTML = '';
+      progressCopy.textContent = 'Seu primeiro retrato já está liberado. O contador continua crescendo a cada novo dia registrado.';
+    }
+
+    if (!hasStorage) {
+      storageTitle.textContent = '⚠ Salvamento local indisponível';
+      storageCopy.textContent = 'Este navegador está bloqueando o armazenamento automático. Baixe seu histórico para não perder o registro.';
+    } else if (currentUser && cloudConsentGranted && !lastCloudError) {
+      storageTitle.textContent = '☁️ Salvo e sincronizado';
+      storageCopy.textContent = 'Este registro está salvo neste dispositivo e sincronizado com a sua conta.';
+    } else if (currentUser && cloudConsentGranted && lastCloudError) {
+      storageTitle.textContent = '💾 Salvo neste dispositivo';
+      storageCopy.textContent = 'Seu registro está seguro neste navegador. A sincronização com a conta ficou pendente e poderá ser tentada novamente.';
+    } else {
+      storageTitle.textContent = '💾 Salvo neste dispositivo';
+      storageCopy.textContent = 'Você pode continuar usando sem conta. Se quiser, sincronize para acessar seu histórico também em outros dispositivos.';
+    }
+
+    returnCopy.innerHTML = `<strong>Registre enquanto acontece para não precisar tentar lembrar depois.</strong><br>${postSaveMotivation(count)}`;
+
+    actions.innerHTML = '';
+
+    if (!currentUser && cloudConfigured) {
+      const cloud = document.createElement('button');
+      cloud.type = 'button';
+      cloud.className = 'btn secondary';
+      cloud.textContent = 'Proteger e sincronizar meu Diário';
+      cloud.addEventListener('click', () => {
+        trackEvent('post_save_account_cta_clicked');
+        closePostSavePanel();
+        openAuthModal();
+      });
+      actions.appendChild(cloud);
+    } else if (currentUser && !cloudConsentGranted && cloudConfigured) {
+      const cloud = document.createElement('button');
+      cloud.type = 'button';
+      cloud.className = 'btn secondary';
+      cloud.textContent = 'Autorizar sincronização';
+      cloud.addEventListener('click', () => {
+        closePostSavePanel();
+        openAuthModal();
+      });
+      actions.appendChild(cloud);
+    }
+
+    if (count >= STREAK_GOAL) {
+      const report = document.createElement('button');
+      report.type = 'button';
+      report.className = 'btn';
+      report.textContent = 'Ver meus insights';
+      report.addEventListener('click', () => {
+        trackEvent('report_viewed');
+        closePostSavePanel();
+        scrollToSectionId('insightsSection');
+      });
+      actions.appendChild(report);
+    } else {
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'btn';
+      close.textContent = 'Continuar';
+      close.addEventListener('click', closePostSavePanel);
+      actions.appendChild(close);
+    }
+
+    overlay.classList.add('visible');
+    trackEvent('post_save_panel_viewed');
+  }
+
+  $('postSaveCloseBtn').addEventListener('click', closePostSavePanel);
+  $('postSaveOverlay').addEventListener('click', (e) => {
+    if (e.target === $('postSaveOverlay')) closePostSavePanel();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && $('postSaveOverlay').classList.contains('visible')) {
+      closePostSavePanel();
+    }
+  });
+
 
   // ---------- Calendar ----------
   function pad2(n){ return String(n).padStart(2, '0'); }
@@ -2210,11 +2536,11 @@
 
   // ---------- Insights ----------
   const LOCKED_PREVIEWS = [
-    'O gatilho que mais aparece nos seus piores dias',
-    'A relação entre o seu sono e as crises de pele',
-    'Se o estresse realmente piora a sua pele (ou não)',
-    'Onde no rosto ou corpo sua pele mais reage',
-    'Se fazer o básico todo dia muda alguma coisa de verdade'
+    'Fatores que aparecem com mais frequência nos dias de maior reatividade',
+    'Como seus registros de sono se comparam aos dias de maior reatividade',
+    'Como seus níveis de estresse aparecem junto das mudanças da pele',
+    'Em quais regiões você registrou mais reações',
+    'Como os dias em que você fez o básico se comparam aos demais'
   ];
 
   function renderInsights(){
