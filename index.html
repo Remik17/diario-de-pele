@@ -1570,6 +1570,7 @@
   const PRIVACY_VERSION = '1.0';
   const PENDING_CONSENT_KEY = 'diario-de-pele:pending-consent';
   const ATTRIBUTION_KEY = 'diario-de-pele:attribution-v1';
+  const AUTH_TRACKING_KEY = 'diario-de-pele:pending-auth-event-v1';
   const ENABLE_PRODUCT_EVENTS = true;
   const PRODUCT_EVENT_ALLOWLIST = new Set([
     'diary_opened',
@@ -2052,12 +2053,12 @@
   }
 
   async function trackEvent(eventName){
-    if (!ENABLE_PRODUCT_EVENTS || !PRODUCT_EVENT_ALLOWLIST.has(eventName) || !supabaseClient || !cloudConfigured) return;
+    if (!ENABLE_PRODUCT_EVENTS || !PRODUCT_EVENT_ALLOWLIST.has(eventName) || !supabaseClient || !cloudConfigured) return false;
 
     const utm = getAttribution();
 
     try {
-      await supabaseClient.from('eventos_produto').insert({
+      const { error } = await supabaseClient.from('eventos_produto').insert({
         user_id: currentUser ? currentUser.id : null,
         session_id: getAnonymousSessionId(),
         event: eventName,
@@ -2068,9 +2069,82 @@
         utm_content: utm.utm_content,
         utm_term: utm.utm_term
       });
+
+      if (error) throw error;
+      return true;
     } catch (e) {
       // Analytics jamais deve bloquear a experiência principal.
-      console.debug('Evento não enviado:', eventName);
+      console.debug('Evento não enviado:', eventName, e);
+      return false;
+    }
+  }
+
+
+  let authCompletionInFlight = false;
+
+  function readPendingAuthTracking(){
+    if (!hasStorage) return null;
+    try {
+      const raw = window.localStorage.getItem(AUTH_TRACKING_KEY);
+      if (!raw) return null;
+
+      const parsed = JSON.parse(raw);
+      const startedMs = parsed && parsed.started_at ? Date.parse(parsed.started_at) : NaN;
+
+      // Expira depois de 24h para não transformar um login futuro
+      // em continuação de um CTA antigo abandonado.
+      if (!Number.isFinite(startedMs) || Date.now() - startedMs > 24 * 60 * 60 * 1000) {
+        window.localStorage.removeItem(AUTH_TRACKING_KEY);
+        return null;
+      }
+
+      return parsed;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function clearPendingAuthTracking(){
+    if (!hasStorage) return;
+    try {
+      window.localStorage.removeItem(AUTH_TRACKING_KEY);
+    } catch (e) {}
+  }
+
+  function beginAuthTracking(){
+    const sessionId = getAnonymousSessionId();
+
+    if (hasStorage) {
+      try {
+        window.localStorage.setItem(AUTH_TRACKING_KEY, JSON.stringify({
+          session_id: sessionId,
+          started_at: new Date().toISOString()
+        }));
+      } catch (e) {}
+    }
+
+    trackEvent('account_cta_clicked');
+  }
+
+  async function trackAuthCompletedIfPending(){
+    if (authCompletionInFlight) return false;
+
+    const pending = readPendingAuthTracking();
+    if (!pending) return false;
+
+    // O Magic Link pode abrir outra aba, mas no mesmo navegador o
+    // identificador anônimo continua no localStorage.
+    if (pending.session_id && pending.session_id !== getAnonymousSessionId()) {
+      return false;
+    }
+
+    authCompletionInFlight = true;
+    try {
+      const sent = await trackEvent('auth_completed');
+      if (sent) clearPendingAuthTracking();
+      return sent;
+    } finally {
+      authCompletionInFlight = false;
     }
   }
 
@@ -2473,7 +2547,7 @@
       cloud.type = 'button';
       cloud.className = 'btn secondary btn-small';
       cloud.textContent = 'Proteger e sincronizar meu Diário';
-      cloud.addEventListener('click', () => { trackEvent('account_cta_clicked'); openAuthModal(); });
+      cloud.addEventListener('click', () => { beginAuthTracking(); openAuthModal(); });
       actions.appendChild(cloud);
     }
   }
@@ -2564,7 +2638,7 @@
       cloud.className = 'btn secondary';
       cloud.textContent = 'Proteger e sincronizar meu Diário';
       cloud.addEventListener('click', () => {
-        trackEvent('account_cta_clicked');
+        beginAuthTracking();
         closePostSavePanel();
         openAuthModal();
       });
@@ -3101,7 +3175,7 @@
   // ---------- Conta / Auth ----------
   $('accountBtn').addEventListener('click', () => {
     if (currentUser && cloudConsentGranted) return;
-    if (!currentUser) trackEvent('account_cta_clicked');
+    if (!currentUser) beginAuthTracking();
     openAuthModal();
   });
   $('authCloseBtn').addEventListener('click', closeAuthModal);
@@ -3176,7 +3250,7 @@
       renderAccountState();
       closeAuthModal();
       await syncAllEntries();
-      trackEvent('auth_completed');
+      await trackAuthCompletedIfPending();
     } catch (err) {
       console.error(err);
       msg.className = 'auth-message error';
@@ -3213,7 +3287,7 @@
     if (consentOk) {
       closeAuthModal();
       await syncAllEntries();
-      trackEvent('auth_completed');
+      await trackAuthCompletedIfPending();
     } else {
       // Primeira autorização desta conta (ou versão nova da política).
       // Agora que sabemos quem é o usuário, mostramos as caixas.
