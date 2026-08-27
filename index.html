@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- V14 / Passo 9: isolamento de dados locais por conta -->
 <title>Diário de Pele</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1611,9 +1612,16 @@
   const $ = (id) => document.getElementById(id);
 
   // ---------- Salvamento automático (localStorage) ----------
-  const STORAGE_KEY = 'diario-de-pele:entries';
+  // V14: registros locais são isolados por identidade.
+  // Nunca reutilizamos a mesma chave de dados entre contas diferentes.
+  const LEGACY_STORAGE_KEY = 'diario-de-pele:entries';
+  const LEGACY_BACKUP_KEY = 'diario-de-pele:entries:legacy-v13-backup';
+  const ANONYMOUS_ENTRIES_KEY = 'diario-de-pele:entries:anonymous';
+  const USER_ENTRIES_PREFIX = 'diario-de-pele:entries:user:';
   const DISMISS_KEY = 'diario-de-pele:import-hint-dismissed';
   const SESSION_KEY = 'diario-de-pele:anonymous-session-id';
+
+  let activeEntriesScope = 'anonymous';
 
   function getAnonymousSessionId(){
     if (!hasStorage) return 'session-' + Math.random().toString(36).slice(2);
@@ -1862,7 +1870,7 @@
         accountBtn.textContent = cloudSyncRunning ? 'Sincronizando…' : 'Diário salvo ✓';
         accountBtn.disabled = cloudSyncRunning;
         if (!cloudSyncRunning && !lastCloudError) setCloudStatus('Sincronização ativa · histórico protegido na sua conta.', 'success');
-        if (privacy) privacy.textContent = 'Seu histórico fica neste dispositivo e é sincronizado com sua conta. Você pode sair a qualquer momento sem apagar a cópia local.';
+        if (privacy) privacy.textContent = 'Seu histórico fica neste dispositivo em uma área separada desta conta e é sincronizado com a nuvem. Ao sair, os dados desta conta deixam de ser exibidos até você entrar novamente.';
       }
     } else {
       accountBtn.disabled = false;
@@ -1985,6 +1993,14 @@
 
   async function syncAllEntries(){
     if (!supabaseClient || !currentUser || !cloudConsentGranted || cloudSyncRunning) return;
+
+    // Invariante de privacidade: a nuvem só recebe o bucket local
+    // explicitamente pertencente ao usuário autenticado atual.
+    if (!currentUserOwnsActiveScope()) {
+      activateCurrentUserEntries({ claimAnonymousIfPending: false, render: true });
+    }
+    if (!currentUserOwnsActiveScope()) return;
+
     cloudSyncRunning = true;
     lastCloudError = null;
     renderAccountState();
@@ -2040,6 +2056,7 @@
 
   async function syncSingleEntry(key){
     if (!supabaseClient || !currentUser || !cloudConsentGranted || !entries[key]) return;
+    if (!currentUserOwnsActiveScope()) return;
     setCloudStatus('Sincronizando…');
     try {
       await upsertRows([localEntryToRow(entries[key], currentUser.id)]);
@@ -2175,23 +2192,162 @@
   // Isso evita interromper todo o JavaScript da página em navegadores novos.
   attribution = captureAttribution();
 
-  function loadEntriesFromStorage(){
-    if (!hasStorage) return null;
+  function entriesScopeForUserId(userId){
+    return userId ? `user:${userId}` : 'anonymous';
+  }
+
+  function entriesStorageKeyForScope(scope){
+    if (!scope || scope === 'anonymous') return ANONYMOUS_ENTRIES_KEY;
+    if (scope.startsWith('user:')) return USER_ENTRIES_PREFIX + scope.slice(5);
+    return ANONYMOUS_ENTRIES_KEY;
+  }
+
+  function parseEntriesObject(raw){
+    if (!raw) return {};
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
     } catch (e) {
-      return null;
+      return {};
+    }
+  }
+
+  function loadEntriesForScope(scope){
+    if (!hasStorage) return {};
+    try {
+      return parseEntriesObject(
+        window.localStorage.getItem(entriesStorageKeyForScope(scope))
+      );
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function persistEntriesForScope(scope, value){
+    if (!hasStorage) return;
+    try {
+      const key = entriesStorageKeyForScope(scope);
+      const safeValue = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+      if (Object.keys(safeValue).length) {
+        window.localStorage.setItem(key, JSON.stringify(safeValue));
+      } else {
+        window.localStorage.removeItem(key);
+      }
+    } catch (e) {
+      // armazenamento cheio ou bloqueado no meio da sessão — exportar continua disponível
     }
   }
 
   function persistEntries(){
-    if (!hasStorage) return;
+    persistEntriesForScope(activeEntriesScope, entries);
+  }
+
+  function mergeEntryMaps(baseEntries, incomingEntries){
+    const merged = { ...(baseEntries || {}) };
+
+    Object.entries(incomingEntries || {}).forEach(([date, incoming]) => {
+      if (!incoming || typeof incoming !== 'object') return;
+
+      const existing = merged[date];
+      if (!existing) {
+        merged[date] = incoming;
+        return;
+      }
+
+      const existingMs = existing.updatedAt ? Date.parse(existing.updatedAt) : NaN;
+      const incomingMs = incoming.updatedAt ? Date.parse(incoming.updatedAt) : NaN;
+
+      // Em conflito, a versão com timestamp mais recente vence.
+      // Se não houver informação suficiente, preservamos o dado já pertencente
+      // à conta em vez de sobrescrevê-lo com um registro anônimo.
+      if (Number.isFinite(incomingMs) && (!Number.isFinite(existingMs) || incomingMs > existingMs)) {
+        merged[date] = incoming;
+      }
+    });
+
+    return merged;
+  }
+
+  function quarantineLegacyEntries(){
+    if (!hasStorage) return false;
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+      const legacyRaw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (!legacyRaw) return false;
+
+      // A chave antiga podia conter dados de mais de uma conta. Por segurança,
+      // ela nunca é atribuída automaticamente a usuário algum na V14.
+      if (!window.localStorage.getItem(LEGACY_BACKUP_KEY)) {
+        window.localStorage.setItem(LEGACY_BACKUP_KEY, legacyRaw);
+      }
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+      return true;
     } catch (e) {
-      // armazenamento cheio ou bloqueado no meio da sessão — exportar continua disponível
+      return false;
     }
+  }
+
+  function activateEntriesScope(scope, { render = true } = {}){
+    activeEntriesScope = scope || 'anonymous';
+    entries = loadEntriesForScope(activeEntriesScope);
+    if (render) renderAllDataViews();
+  }
+
+  function pendingAuthBelongsToThisBrowser(){
+    const pending = readPendingAuthTracking();
+    if (!pending) return false;
+    return !pending.session_id || pending.session_id === getAnonymousSessionId();
+  }
+
+  function claimAnonymousEntriesForUser(userId){
+    if (!hasStorage || !userId) return 0;
+
+    const userScope = entriesScopeForUserId(userId);
+    const anonymousEntries = loadEntriesForScope('anonymous');
+    const anonymousCount = Object.keys(anonymousEntries).length;
+    const userEntries = loadEntriesForScope(userScope);
+
+    if (!anonymousCount) {
+      activeEntriesScope = userScope;
+      entries = userEntries;
+      return 0;
+    }
+
+    const merged = mergeEntryMaps(userEntries, anonymousEntries);
+    persistEntriesForScope(userScope, merged);
+
+    // "Salvar meu Diário" + autenticação concluída significa que estes
+    // registros locais foram vinculados a esta conta. Removemos o bucket
+    // anônimo para impedir que uma segunda conta os reivindique depois.
+    persistEntriesForScope('anonymous', {});
+
+    activeEntriesScope = userScope;
+    entries = merged;
+    return anonymousCount;
+  }
+
+  function activateCurrentUserEntries({ claimAnonymousIfPending = false, render = true } = {}){
+    if (!currentUser || !currentUser.id) {
+      activateEntriesScope('anonymous', { render });
+      return;
+    }
+
+    const targetScope = entriesScopeForUserId(currentUser.id);
+
+    if (claimAnonymousIfPending && pendingAuthBelongsToThisBrowser()) {
+      claimAnonymousEntriesForUser(currentUser.id);
+      if (render) renderAllDataViews();
+      return;
+    }
+
+    activateEntriesScope(targetScope, { render });
+  }
+
+  function currentUserOwnsActiveScope(){
+    return !!(
+      currentUser &&
+      currentUser.id &&
+      activeEntriesScope === entriesScopeForUserId(currentUser.id)
+    );
   }
 
   function isHintDismissed(){
@@ -3268,16 +3424,26 @@
       alert('Não foi possível sair agora. Tente novamente.');
       return;
     }
+
     currentUser = null;
     cloudConsentGranted = false;
     lastCloudError = null;
+
+    // Ao sair, nunca continuamos mostrando o cache da conta anterior.
+    activateEntriesScope('anonymous', { render: true });
     renderAccountState();
-    updateStorageStatus();
     updateJourneyCard(false);
   });
 
   async function handleSignedIn(){
     if (!currentUser) return;
+
+    // Se o login nasceu do CTA "Salvar meu Diário" neste navegador,
+    // os registros anônimos atuais passam a pertencer somente a esta conta.
+    activateCurrentUserEntries({
+      claimAnonymousIfPending: true,
+      render: true
+    });
 
     const consentOk = await ensureCloudConsent();
     renderAccountState();
@@ -3303,16 +3469,38 @@
     const { data, error } = await supabaseClient.auth.getSession();
     if (!error && data && data.session) {
       currentUser = data.session.user;
+
+      // Uma sessão já existente carrega somente o bucket daquela conta.
+      // Se houver um login pendente iniciado pelo CTA neste navegador,
+      // a reivindicação anônima é segura e idempotente.
+      activateCurrentUserEntries({
+        claimAnonymousIfPending: pendingAuthBelongsToThisBrowser(),
+        render: true
+      });
+
       await ensureCloudConsent();
+    } else {
+      currentUser = null;
+      activateEntriesScope('anonymous', { render: true });
     }
     renderAccountState();
 
     supabaseClient.auth.onAuthStateChange((event, session) => {
-      currentUser = session ? session.user : null;
+      const nextUser = session ? session.user : null;
+      currentUser = nextUser;
       if (!currentUser) cloudConsentGranted = false;
       lastCloudError = null;
+
+      if (currentUser) {
+        activateCurrentUserEntries({
+          claimAnonymousIfPending: event === 'SIGNED_IN' && pendingAuthBelongsToThisBrowser(),
+          render: true
+        });
+      } else {
+        activateEntriesScope('anonymous', { render: true });
+      }
+
       renderAccountState();
-      updateStorageStatus();
       updateJourneyCard(false);
 
       if (event === 'SIGNED_IN' && currentUser) {
@@ -3339,10 +3527,13 @@
   });
 
   // ---------- Init ----------
-  const stored = loadEntriesFromStorage();
-  if (stored && Object.keys(stored).length) {
-    entries = stored;
-  }
+  // A V13 usava uma única chave compartilhada entre contas.
+  // Preservamos uma cópia local de segurança, mas ela não é exibida
+  // nem sincronizada automaticamente na V14.
+  quarantineLegacyEntries();
+
+  activeEntriesScope = 'anonymous';
+  entries = loadEntriesForScope('anonymous');
 
   if (!hasStorage) {
     $('autoDownloadToggle').checked = true;
