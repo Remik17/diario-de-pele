@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- V14 / Passo 9: isolamento de dados locais por conta -->
+<!-- V15 / Passo 11.1: pré-lançamento limpo + isolamento de dados por conta -->
 <title>Diário de Pele</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -665,77 +665,6 @@
     text-align: center;
   }
 
-  /* ---------- Kit SOS Pele ---------- */
-  .sos-float-btn {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 60;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--ink);
-    color: var(--paper);
-    border: none;
-    border-radius: 999px;
-    padding: 12px 18px;
-    font-family: var(--mono);
-    font-size: 12.5px;
-    cursor: pointer;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
-    transition: transform 0.15s ease, opacity 0.15s ease;
-  }
-  .sos-float-btn:hover { transform: translateY(-2px); }
-  .sos-float-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-  .sos-eyebrow {
-    font-family: var(--mono);
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--accent-deep);
-    margin: 0 0 10px;
-  }
-  .sos-steps {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin: 18px 0;
-  }
-  .sos-step {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    text-decoration: none;
-    color: var(--ink);
-    transition: border-color 0.15s ease, background 0.15s ease;
-  }
-  .sos-step:hover { border-color: var(--ink-faint); background: var(--paper); }
-  .sos-step:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 2px; }
-  .sos-step-icon { font-size: 18px; flex-shrink: 0; }
-  .sos-step-text { flex: 1; font-size: 13.5px; line-height: 1.4; }
-  .sos-step-text strong { display: block; font-size: 13px; color: var(--ink); margin-bottom: 2px; }
-  .sos-step-arrow { font-size: 14px; color: var(--ink-faint); flex-shrink: 0; }
-
-  .sos-disclosure {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--ink-faint);
-    margin: 0 0 24px;
-  }
-  .sos-divider { height: 1px; background: var(--line); margin: 24px 0; }
-  .sos-transition { font-size: 15px; margin: 0 0 10px; }
-  .sos-list {
-    margin: 12px 0 20px;
-    padding-left: 20px;
-    font-size: 13.5px;
-    color: var(--ink-soft);
-    line-height: 1.7;
-  }
-  .sos-cta { display: inline-block; text-decoration: none; text-align: center; }
 
   /* ---------- Insights bloqueados (antes do dia 7) ---------- */
   .locked-grid {
@@ -764,14 +693,11 @@
     margin-bottom: 10px;
   }
   .locked-progress strong { color: var(--ink); }
-  .locked-sos-hint { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
-  .locked-sos-link { color: var(--accent-deep); cursor: pointer; }
 
   @media (max-width: 480px) {
     .wrap { padding: 40px 18px 80px; }
     .card { padding: 20px; }
     .cal-day .daynum { display: none; }
-    .sos-float-btn { bottom: 14px; right: 14px; padding: 10px 14px; font-size: 11.5px; }
   }
 
 
@@ -1245,7 +1171,7 @@
 
   <div class="streak-bar" id="streakBar" role="button" tabindex="0">
     <span class="streak-flame" id="streakFlame" aria-hidden="true">🔥</span>
-    <span class="streak-text" id="streakText">0/7 dias para ver seus padrões</span>
+    <span class="streak-text" id="streakText">0/7 registros para seu primeiro retrato</span>
   </div>
 
   <div class="account-bar" id="accountBar">
@@ -1261,8 +1187,8 @@
 
   <div class="header-block">
     <div class="eyebrow">Diário de pele</div>
-    <h1 class="title">Sua pele já está<br>tentando te dizer algo.</h1>
-    <p class="lede">Não é sobre ter pele perfeita. É sobre parar de viver no escuro — registrando o dia a dia até o padrão ficar óbvio.</p>
+    <h1 class="title">Pare de tentar lembrar.<br>Comece a acompanhar.</h1>
+    <p class="lede">Registre o que acontece no dia a dia e transforme lembranças soltas em um histórico que você pode observar ao longo do tempo.</p>
     <p class="privacy-note" id="privacyNote">Você pode começar sem conta. Seus registros ficam neste dispositivo; se quiser, salve o Diário para proteger o histórico e continuar de outros aparelhos.</p>
   </div>
 
@@ -1400,47 +1326,6 @@
     <div id="insightsWrap"></div>
   </section>
 
-  <!-- ===== KIT SOS PELE ===== -->
-  <section class="block" id="sosSection">
-    <div class="block-head">
-      <h2 class="block-title">Kit SOS Pele</h2>
-    </div>
-    <div class="card">
-      <p class="sos-eyebrow">Pele em crise? Faça o "Skin Reset"</p>
-      <p>Cada pele é única, mas quando o seu rosto está reativo, inflamado ou não responde a nada, a regra de ouro na dermatologia é uma só: suspenda os ácidos, pare de agredir e volte para o básico. Este é o Kit SOS de Alta Tolerância (e baixo custo) que indicamos para acalmar a barreira de proteção de qualquer pele, sem pesar no bolso.</p>
-
-      <div class="sos-steps">
-        <a class="sos-step" href="https://link.amazon/B0aWHwfqO" target="_blank" rel="noopener sponsored">
-          <span class="sos-step-icon">🧴</span>
-          <span class="sos-step-text"><strong>Passo 1: Limpeza sem agredir</strong>Darrow Suavié Sabonete Líquido (140ml)</span>
-          <span class="sos-step-arrow">↗</span>
-        </a>
-        <a class="sos-step" href="https://link.amazon/B06oj478m" target="_blank" rel="noopener sponsored">
-          <span class="sos-step-icon">💧</span>
-          <span class="sos-step-text"><strong>Passo 2: Reconstrução rápida</strong>La Roche-Posay Cicaplast Baume B5 (20ml)</span>
-          <span class="sos-step-arrow">↗</span>
-        </a>
-        <a class="sos-step" href="https://link.amazon/B01XXKD9w" target="_blank" rel="noopener sponsored">
-          <span class="sos-step-icon">☀️</span>
-          <span class="sos-step-text"><strong>Passo 3: Proteção sem irritar</strong>Dermare Protetor Solar Mineral FPS 50 Cor Bege (45g, zinco + titânio)</span>
-          <span class="sos-step-arrow">↗</span>
-        </a>
-      </div>
-
-      <p class="sos-disclosure">Links de afiliado — se você comprar por aqui, pode gerar uma comissão pra gente, sem custo extra pra você.</p>
-
-      <div class="sos-divider"></div>
-
-      <p class="sos-transition">O kit acima apaga o incêndio, mas não descobre quem riscou o fósforo.</p>
-      <p>Produtos acalmam a pele de fora para dentro, mas a inflamação começa nos seus hábitos. Se você quer parar de viver apagando incêndios, precisa descobrir os seus gatilhos invisíveis. No Método Sem Vulcão, você leva:</p>
-      <ul class="sos-list">
-        <li>O guia completo de interpretação dos dados deste Diário</li>
-        <li>O mapeamento do eixo Intestino-Pele e gatilhos hormonais</li>
-        <li>Rotinas completas (com indicações de produtos) para cada tipo de pele</li>
-      </ul>
-      <a class="btn sos-cta" href="https://pay.kiwify.com.br/Iy3veZN" target="_blank" rel="noopener">Quero descobrir a causa raiz (R$ 27)</a>
-    </div>
-  </section>
 
   <!-- ===== EXPORT ===== -->
   <section class="block">
@@ -1459,14 +1344,9 @@
     </div>
   </section>
 
-  <footer>diário de pele — parte do seu método</footer>
+  <footer>diário de pele — observe seu histórico</footer>
 
 </div>
-
-<button type="button" class="sos-float-btn" id="sosFloatBtn">🆘 Kit SOS Pele</button>
-
-
-
 <div class="post-save-overlay" id="postSaveOverlay" role="dialog" aria-modal="true" aria-labelledby="postSaveTitle">
   <div class="post-save-dialog">
     <div class="post-save-head">
@@ -2436,11 +2316,6 @@
     }
   }
 
-  const sosFloatBtn = $('sosFloatBtn');
-  if (sosFloatBtn) {
-    sosFloatBtn.addEventListener('click', () => scrollToSectionId('sosSection'));
-  }
-
   function dateToLocalKey(d){
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
@@ -2994,10 +2869,7 @@
           ${LOCKED_PREVIEWS.map(p => `<div class="locked-card"><span class="locked-icon">🔒</span><span>${p}</span></div>`).join('')}
         </div>
         <div class="locked-progress">Faltam <strong>${remaining} registro${remaining === 1 ? '' : 's'}</strong> para liberar seu primeiro retrato — eles não precisam ser consecutivos.</div>
-        <div class="locked-sos-hint">Pele em crise agora? <a class="locked-sos-link" id="insightsSosLink">Confira o Kit SOS</a> enquanto isso.</div>
       `;
-      const sosLink = $('insightsSosLink');
-      if (sosLink) sosLink.addEventListener('click', (e) => { e.preventDefault(); scrollToSectionId('sosSection'); });
       return;
     }
 
