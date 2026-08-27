@@ -3101,6 +3101,7 @@
   // ---------- Conta / Auth ----------
   $('accountBtn').addEventListener('click', () => {
     if (currentUser && cloudConsentGranted) return;
+    if (!currentUser) trackEvent('account_cta_clicked');
     openAuthModal();
   });
   $('authCloseBtn').addEventListener('click', closeAuthModal);
@@ -3175,7 +3176,7 @@
       renderAccountState();
       closeAuthModal();
       await syncAllEntries();
-      trackEvent('cloud_consent_completed');
+      trackEvent('auth_completed');
     } catch (err) {
       console.error(err);
       msg.className = 'auth-message error';
