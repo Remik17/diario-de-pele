@@ -1559,7 +1559,7 @@
   const WEEKDAY_LABEL = ['dom','seg','ter','qua','qui','sex','sáb'];
 
 
-  // ---------- Supabase: configure somente URL + chave pública ----------
+  // ---------- Supabase: configure somente eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwbWZ6b2hnbGl0emVobnFtcXZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0ODIwNzAsImV4cCI6MjEwMjA1ODA3MH0.xJIHS4PPGDfkJzFXXbUeaCE9uah_fMBQyBIE2wjtcHs + chave pública ----------
   // A chave publishable/anon é apropriada para frontend quando RLS está corretamente habilitado.
   // NUNCA use service_role no navegador.
   const SUPABASE_URL = 'https://zpmfzohglitzehnqmqvh.supabase.co';
@@ -1668,7 +1668,7 @@
     return hasIncomingUtm ? incoming : readStoredAttribution();
   }
 
-  let attribution = captureAttribution();
+  let attribution = {};
 
   function getAttribution(){
     // Releitura simples caso uma nova campanha tenha sido capturada
@@ -2086,6 +2086,10 @@
   }
 
   const hasStorage = storageAvailable();
+
+  // Só captura a origem depois que o suporte a localStorage foi inicializado.
+  // Isso evita interromper todo o JavaScript da página em navegadores novos.
+  attribution = captureAttribution();
 
   function loadEntriesFromStorage(){
     if (!hasStorage) return null;
