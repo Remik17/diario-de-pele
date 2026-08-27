@@ -1571,7 +1571,16 @@
   const PENDING_CONSENT_KEY = 'diario-de-pele:pending-consent';
   const ATTRIBUTION_KEY = 'diario-de-pele:attribution-v1';
   const ENABLE_PRODUCT_EVENTS = true;
-  const PRODUCT_EVENT_ALLOWLIST = new Set(['diary_opened']); // Passo 3: somente abertura
+  const PRODUCT_EVENT_ALLOWLIST = new Set([
+    'diary_opened',
+    'first_entry_saved',
+    'second_entry_saved',
+    'third_entry_saved',
+    'seventh_entry_saved',
+    'report_viewed',
+    'account_cta_clicked',
+    'auth_completed'
+  ]);
 
   const cloudConfigured =
     /^https:\/\//.test(SUPABASE_URL) &&
@@ -2401,7 +2410,20 @@
     setTimeout(() => confirm.classList.remove('show'), 2600);
 
     updateJourneyCard(true);
-    trackEvent(Object.keys(entries).length === 1 ? 'first_entry_saved' : (Object.keys(entries).length === STREAK_GOAL ? 'seventh_entry_saved' : 'entry_saved'));
+
+    // Eventos de ativação/retenção só contam quando um NOVO dia entra no histórico.
+    // Editar um registro existente não gera novamente um marco do funil.
+    if (!wasExistingEntry) {
+      const totalEntries = Object.keys(entries).length;
+      const milestoneEvent =
+        totalEntries === 1 ? 'first_entry_saved' :
+        totalEntries === 2 ? 'second_entry_saved' :
+        totalEntries === 3 ? 'third_entry_saved' :
+        totalEntries === STREAK_GOAL ? 'seventh_entry_saved' :
+        null;
+
+      if (milestoneEvent) trackEvent(milestoneEvent);
+    }
 
     if (currentUser) await syncSingleEntry(key);
 
@@ -2542,7 +2564,7 @@
       cloud.className = 'btn secondary';
       cloud.textContent = 'Proteger e sincronizar meu Diário';
       cloud.addEventListener('click', () => {
-        trackEvent('post_save_account_cta_clicked');
+        trackEvent('account_cta_clicked');
         closePostSavePanel();
         openAuthModal();
       });
