@@ -1559,7 +1559,7 @@
   const WEEKDAY_LABEL = ['dom','seg','ter','qua','qui','sex','sáb'];
 
 
-  // ---------- Supabase: configure somente eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpwbWZ6b2hnbGl0emVobnFtcXZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0ODIwNzAsImV4cCI6MjEwMjA1ODA3MH0.xJIHS4PPGDfkJzFXXbUeaCE9uah_fMBQyBIE2wjtcHs + chave pública ----------
+  // ---------- Supabase: configure somente URL + chave pública ----------
   // A chave publishable/anon é apropriada para frontend quando RLS está corretamente habilitado.
   // NUNCA use service_role no navegador.
   const SUPABASE_URL = 'https://zpmfzohglitzehnqmqvh.supabase.co';
@@ -1570,7 +1570,8 @@
   const PRIVACY_VERSION = '1.0';
   const PENDING_CONSENT_KEY = 'diario-de-pele:pending-consent';
   const ATTRIBUTION_KEY = 'diario-de-pele:attribution-v1';
-  const ENABLE_PRODUCT_EVENTS = false; // permanece DESLIGADO neste passo
+  const ENABLE_PRODUCT_EVENTS = true;
+  const PRODUCT_EVENT_ALLOWLIST = new Set(['diary_opened']); // Passo 3: somente abertura
 
   const cloudConfigured =
     /^https:\/\//.test(SUPABASE_URL) &&
@@ -2042,7 +2043,7 @@
   }
 
   async function trackEvent(eventName){
-    if (!ENABLE_PRODUCT_EVENTS || !supabaseClient || !cloudConfigured) return;
+    if (!ENABLE_PRODUCT_EVENTS || !PRODUCT_EVENT_ALLOWLIST.has(eventName) || !supabaseClient || !cloudConfigured) return;
 
     const utm = getAttribution();
 
@@ -3262,8 +3263,16 @@
   updateStorageStatus();
   updateStreakBar();
   updateJourneyCard(false);
-  trackEvent('diary_opened');
-  initCloudSession();
+
+  // Primeiro identifica a sessão, depois registra a abertura.
+  // Assim, quando houver conta conectada, o evento recebe o user_id correto.
+  initCloudSession()
+    .then(() => trackEvent('diary_opened'))
+    .catch((err) => {
+      console.error('Falha ao inicializar sessão:', err);
+      // Analytics não deve impedir o Diário de funcionar.
+      trackEvent('diary_opened');
+    });
 })();
 </script>
 
